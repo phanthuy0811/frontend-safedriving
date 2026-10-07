@@ -1,0 +1,24 @@
+services:
+  safedriving-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: safedriving-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount code từ máy Windows vào container để sửa code là tự cập nhật (Hot-Reload)
+      - .:/app
+      # Giữ node_modules và cache .next riêng biệt trong Linux container, tránh đè lên Windows
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G

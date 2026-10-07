@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 import { Providers } from "./providers";
+import RealtimeAlertToast from "@/components/common/RealtimeAlertToast";
 
 export const metadata: Metadata = {
   title: "Safe Driving Management System",
@@ -30,7 +31,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <RealtimeAlertToast />
+        </Providers>
       </body>
     </html>
   );
