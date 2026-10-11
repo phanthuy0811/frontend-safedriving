@@ -1,29 +1,36 @@
+// Sync với VehicleStatus enum BE
 export type VehicleStatus =
   | "AVAILABLE"
-  | "IN_USE"
+  | "IN_SERVICE"
   | "MAINTENANCE"
-  | "DECOMMISSIONED";
+  | "OUT_OF_SERVICE";
 
-export interface VehicleBasicResponse {
-  id: string;
-  plate_number: string;
-  model?: string;
-  status: string;
-}
-
+// Sync với VehicleResponse BE
 export interface VehicleResponse {
   id: string;
-  plate_number: string;
+  plateNumber: string;
   vin?: string;
   capacity?: number;
-  vehicle_type_name?: string;
+  vehicleTypeId: number;
+  vehicleTypeName: string;
   status: VehicleStatus;
-  device_id?: string;
-  odometer_km?: number;
-  assigned_driver_id?: string;
-  assigned_driver_name?: string;
+  odometerKm?: number;
+  // Các trường phục vụ module Fleet
+  deviceId?: string;
+  assignedDriverName?: string;
+  assignedDriverId?: string;
 }
 
 export interface AssignDriverRequest {
   driver_id: string;
+}
+
+// Sync với VehicleRequest BE
+export interface VehicleRequest {
+  plateNumber: string;
+  vin?: string;
+  capacity?: number;
+  vehicleTypeId: number;
+  status?: VehicleStatus;
+  odometerKm?: number;
 }

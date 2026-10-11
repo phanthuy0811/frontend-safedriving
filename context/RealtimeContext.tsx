@@ -26,6 +26,8 @@ interface RealtimeContextType {
   latestNotification: SafetyAlertEvent | null;
   dismissNotification: () => void;
   refreshPendingCount: () => Promise<void>;
+  requestStream: (driverId: string) => void;
+  stopStream: (driverId: string) => void;
 }
 
 const RealtimeContext = createContext<RealtimeContextType | undefined>(
@@ -50,6 +52,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     useState<SafetyAlertEvent | null>(null);
 
   const eventSourceRef = useRef<EventSource | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const refreshPendingCount = useCallback(async () => {
@@ -58,6 +61,59 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       setPendingHitlCount(queue.totalElements ?? 0);
     } catch {
       // Backend might be warming up or auth token not yet present
+    }
+  }, []);
+
+  
+  const connectWs = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const wsUrl = API_BASE_URL.replace("http://", "ws://").replace("https://", "wss://") + "/ws/realtime";
+    
+    try {
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+      
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "CAMERA_FRAME") {
+            // High-fps stream: direct DOM update to avoid React re-renders
+            const imgEl = document.getElementById(`camera-stream-${msg.driverId}`);
+            if (imgEl) {
+              imgEl.setAttribute("src", "data:image/jpeg;base64," + msg.data);
+            }
+          }
+        } catch(e) {}
+      };
+
+      ws.onerror = () => {
+        ws.close();
+      };
+      
+      ws.onclose = () => {
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connectWs();
+        }, 3000);
+      };
+      
+    } catch(err) {
+      console.error("WS error", err);
+    }
+  }, []);
+
+  
+  const requestStream = useCallback((driverId: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN && driverId) {
+      wsRef.current.send(JSON.stringify({ type: "REQUEST_STREAM", driverId: Number(driverId) }));
+    }
+  }, []);
+
+  const stopStream = useCallback((driverId: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN && driverId) {
+      wsRef.current.send(JSON.stringify({ type: "STOP_STREAM", driverId: Number(driverId) }));
     }
   }, []);
 
@@ -161,6 +217,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         }
         reconnectTimeoutRef.current = setTimeout(() => {
           connectSse();
+    connectWs();
         }, 5000);
       };
     } catch {
@@ -185,7 +242,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [connectSse, refreshPendingCount]);
+  }, [connectSse, connectWs, refreshPendingCount]);
 
   const dismissNotification = () => {
     setLatestNotification(null);
@@ -202,6 +259,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         latestNotification,
         dismissNotification,
         refreshPendingCount,
+        requestStream,
+        stopStream,
       }}
     >
       {children}

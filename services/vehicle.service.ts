@@ -23,3 +23,28 @@ export async function assignDriverToVehicle(
   );
   return response.data!;
 }
+
+// POST /vehicles — ADMIN, MANAGER
+export async function createVehicle(
+  request: any
+): Promise<VehicleResponse> {
+  const response = await apiClient.post<VehicleResponse>("/api/v1/vehicles", request);
+  return response.data!;
+}
+
+// PUT /vehicles/{id} — ADMIN, MANAGER
+export async function updateVehicle(
+  id: string,
+  request: any
+): Promise<VehicleResponse> {
+  const response = await apiClient.put<VehicleResponse>(
+    `/api/v1/vehicles/${id}`,
+    request
+  );
+  return response.data!;
+}
+
+// DELETE /vehicles/{id} — soft delete, ADMIN, MANAGER
+export async function deleteVehicle(id: string): Promise<void> {
+  await apiClient.delete<void>(`/api/v1/vehicles/${id}`);
+}

@@ -5,6 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { VehicleResponse } from "@/types/vehicle";
 import { GpsTelemetryEvent } from "@/types/realtime";
+import { useRealtime } from "@/context/RealtimeContext";
 
 interface LiveFleetMapProps {
   vehicles: VehicleResponse[];
@@ -27,6 +28,7 @@ export default function LiveFleetMap({
   const markersGroupRef = useRef<L.FeatureGroup | null>(null);
   const hasFitRef = useRef(false);
   const [mapType, setMapType] = useState<MapLayerType>("street");
+  const { requestStream, stopStream } = useRealtime();
 
   // Tile layer URLs (100% accessible in VN without API keys)
   const getTileUrl = (type: MapLayerType) => {
@@ -108,27 +110,30 @@ export default function LiveFleetMap({
     markersGroup.clearLayers();
 
     // 1. Base vehicles from props or default fallback
-    const DEFAULT_SEED_VEHICLES = [
+    const DEFAULT_SEED_VEHICLES: VehicleResponse[] = [
       {
         id: "f8a12345-0000-0000-0000-000000000001",
-        plate_number: "30G-456.78",
-        status: "IN_USE" as const,
-        assigned_driver_name: "Nguyễn Văn A (App Mobile)",
-        vehicle_type_name: "VinFast VF8 Eco (Điện)",
+        plateNumber: "30G-456.78",
+        status: "IN_SERVICE" as const,
+        assignedDriverName: "Nguyễn Văn A (App Mobile)",
+        vehicleTypeId: 1,
+        vehicleTypeName: "VinFast VF8 Eco (Điện)",
       },
       {
         id: "f8a12345-0000-0000-0000-000000000002",
-        plate_number: "29A-888.99",
+        plateNumber: "29A-888.99",
         status: "AVAILABLE" as const,
-        assigned_driver_name: "Trần Tuấn Tài",
-        vehicle_type_name: "Toyota HiAce 16 chỗ",
+        assignedDriverName: "Trần Tuấn Tài",
+        vehicleTypeId: 2,
+        vehicleTypeName: "Toyota HiAce 16 chỗ",
       },
       {
         id: "f8a12345-0000-0000-0000-000000000003",
-        plate_number: "51B-123.45",
-        status: "IN_USE" as const,
-        assigned_driver_name: "Lê Hoàng Minh",
-        vehicle_type_name: "Hyundai Universe 45 chỗ",
+        plateNumber: "51B-123.45",
+        status: "IN_SERVICE" as const,
+        assignedDriverName: "Lê Hoàng Minh",
+        vehicleTypeId: 3,
+        vehicleTypeName: "Hyundai Universe 45 chỗ",
       },
     ];
 
@@ -137,15 +142,16 @@ export default function LiveFleetMap({
     // 2. Discover any active live devices broadcasting GPS that aren't yet in displayVehicles
     Object.entries(vehiclesGps).forEach(([vKey, gpsData]) => {
       const exists = displayVehicles.some(
-        (v) => v.id === vKey || v.plate_number === vKey || (gpsData.vehicle_id && v.id === gpsData.vehicle_id)
+        (v) => v.id === vKey || v.plateNumber === vKey || (gpsData.vehicle_id && v.id === gpsData.vehicle_id)
       );
       if (!exists && gpsData.latitude !== undefined && gpsData.longitude !== undefined) {
         displayVehicles.unshift({
           id: gpsData.vehicle_id || vKey,
-          plate_number: gpsData.plate_number || "30G-456.78",
-          status: "IN_USE",
-          assigned_driver_name: gpsData.driver_name || "Nguyễn Văn A (App Mobile)",
-          vehicle_type_name: "Thiết bị di động thật (GPS Live)",
+          plateNumber: gpsData.plate_number || "30G-456.78",
+          vehicleTypeId: 1, status: "IN_SERVICE",
+          assignedDriverName: gpsData.driver_name || "Nguyễn Văn A (App Mobile)",
+          assignedDriverId: gpsData.driver_id || "1",
+          vehicleTypeName: "Thiết bị di động thật (GPS Live)",
         });
       }
     });
@@ -154,7 +160,7 @@ export default function LiveFleetMap({
     let realPhoneCoords: [number, number] | null = null;
 
     displayVehicles.forEach((vehicle, idx) => {
-      const gps = vehiclesGps[vehicle.id] || vehiclesGps[vehicle.plate_number];
+      const gps = vehiclesGps[vehicle.id] || vehiclesGps[vehicle.plateNumber];
 
       const isLive =
         !!gps &&
@@ -183,7 +189,7 @@ export default function LiveFleetMap({
         lng = seed[1];
       }
 
-      const isInUse = vehicle.status === "IN_USE";
+      const isInUse = vehicle.status === "IN_SERVICE";
       const isSelected = selectedVehicleId === vehicle.id;
 
       // Color coding:
@@ -193,25 +199,25 @@ export default function LiveFleetMap({
       const dotColor = isSelected
         ? "#f59e0b"
         : isLive
-        ? "#10b981"
-        : isInUse
-        ? "#0284c7"
-        : "#64748b";
+          ? "#10b981"
+          : isInUse
+            ? "#0284c7"
+            : "#64748b";
 
       const dotStatusLabel = isLive
         ? "ĐANG PHÁT GPS THỰC TẾ"
         : isInUse
-        ? "Đang chạy (Mô phỏng)"
-        : "Đang dừng";
+          ? "Đang chạy (Mô phỏng)"
+          : "Đang dừng";
 
       const speedText =
         gps?.speed_kmh !== undefined
           ? `${gps.speed_kmh.toFixed(1)} km/h`
           : isLive
-          ? "0.0 km/h"
-          : isInUse
-          ? "40.0 km/h (Mô phỏng)"
-          : "0.0 km/h";
+            ? "0.0 km/h"
+            : isInUse
+              ? "40.0 km/h (Mô phỏng)"
+              : "0.0 km/h";
 
       // 1. Radar Circle Halo if Live Phone
       if (isLive) {
@@ -255,7 +261,7 @@ export default function LiveFleetMap({
           ">
             <span class="pulse-beacon"></span>
             <span style="color:#6ee7b7;font-weight:bold;">[LIVE GPS THỰC TẾ]</span>
-            <span>🚗 ${vehicle.plate_number}</span>
+            <span>🚗 ${vehicle.plateNumber}</span>
           </div>`
         : `<div style="
             display: flex;
@@ -272,7 +278,7 @@ export default function LiveFleetMap({
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
             white-space: nowrap;
           ">
-            <span>🚗 ${vehicle.plate_number}</span>
+            <span>🚗 ${vehicle.plateNumber}</span>
             <span style="color:#94a3b8;font-size:9px;font-weight:normal;">(Xe mẫu)</span>
           </div>`;
 
@@ -287,26 +293,22 @@ export default function LiveFleetMap({
       const popupHtml = `
         <div style="font-family: sans-serif; min-width: 220px; padding: 6px;">
           <div style="font-size: 14px; font-weight: bold; color: #0f172a; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
-            <span>🚗 ${vehicle.plate_number}</span>
-            <span style="font-size: 10px; background: ${
-              isLive ? "#ecfdf5" : isInUse ? "#f0f9ff" : "#fef2f2"
-            }; color: ${
-        isLive ? "#059669" : isInUse ? "#0284c7" : "#dc2626"
-      }; padding: 2px 8px; border-radius: 9999px; font-weight: bold;">
+            <span>🚗 ${vehicle.plateNumber}</span>
+            <span style="font-size: 10px; background: ${isLive ? "#ecfdf5" : isInUse ? "#f0f9ff" : "#fef2f2"
+        }; color: ${isLive ? "#059669" : isInUse ? "#0284c7" : "#dc2626"
+        }; padding: 2px 8px; border-radius: 9999px; font-weight: bold;">
               ${dotStatusLabel}
             </span>
           </div>
-          ${
-            isLive
-              ? `<div style="margin-bottom: 6px; padding: 4px 8px; background: #ecfdf5; border-radius: 6px; font-size: 11px; color: #065f46; font-weight: 600;">
+          ${isLive
+          ? `<div style="margin-bottom: 6px; padding: 4px 8px; background: #ecfdf5; border-radius: 6px; font-size: 11px; color: #065f46; font-weight: 600;">
                   🛰️ Tọa độ GPS thời gian thực từ Mobile App tại Vinhomes
                 </div>`
-              : ""
-          }
+          : ""
+        }
           <div style="font-size: 12px; color: #475569; margin-bottom: 3px;">
-            Tài xế: <strong style="color: #1e293b;">${
-              vehicle.assigned_driver_name || "Chưa phân công"
-            }</strong>
+            Tài xế: <strong style="color: #1e293b;">${vehicle.assignedDriverName || "Chưa phân công"
+        }</strong>
           </div>
           <div style="font-size: 12px; color: #475569; margin-bottom: 3px;">
             Vận tốc: <strong style="color: ${dotColor};">${speedText}</strong>
@@ -314,9 +316,38 @@ export default function LiveFleetMap({
           <div style="font-size: 11px; color: #64748b; font-family: monospace; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #cbd5e1;">
             Tọa độ: ${lat.toFixed(6)}, ${lng.toFixed(6)}
           </div>
+          ${isLive
+          ? `<div style="margin-top: 8px; border-radius: 6px; overflow: hidden; background: #000; position: relative;">
+                  <img id="camera-stream-${vehicle.assignedDriverId || '1'}" 
+                       src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMwMDAiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZmlsbD0iI2ZmZiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5C4bqlbSBuw7p0IFhlbSBDYW1lcmEgxJHhu4MgecOqdSBj4bqndSBTVFJFQU08L3RleHQ+PC9zdmc+" 
+                       alt="Live Stream" 
+                       style="width: 100%; height: 120px; object-fit: cover; display: block;" />
+                  <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4);" id="overlay-${vehicle.assignedDriverId || '1'}">
+                     <button id="btn-req-${vehicle.assignedDriverId || '1'}" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 9999px; font-weight: bold; font-size: 11px; cursor: pointer;">▶ Xem Camera</button>
+                  </div>
+                </div>`
+          : ''
+        }
         </div>
       `;
       circleDot.bindPopup(popupHtml);
+
+      circleDot.on("popupopen", () => {
+        const dId = vehicle.assignedDriverId || '1';
+        const btn = document.getElementById(`btn-req-${dId}`);
+        const overlay = document.getElementById(`overlay-${dId}`);
+        if (btn) {
+          btn.onclick = () => {
+            requestStream(dId);
+            if (overlay) overlay.style.display = 'none'; // hide button overlay
+          };
+        }
+      });
+
+      circleDot.on("popupclose", () => {
+        const dId = vehicle.assignedDriverId || '1';
+        stopStream(dId);
+      });
 
       circleDot.on("click", () => {
         if (onSelectVehicle) {
@@ -343,7 +374,7 @@ export default function LiveFleetMap({
       map.fitBounds(bounds.pad(0.3), { maxZoom: 14 });
       hasFitRef.current = true;
     }
-  }, [map, vehicles, vehiclesGps, selectedVehicleId, onSelectVehicle]);
+  }, [map, vehicles, vehiclesGps, selectedVehicleId, onSelectVehicle, requestStream, stopStream]);
 
   // Quick Action: Focus directly on the Live Phone in Vinhomes
   const handleFocusRealPhone = () => {
@@ -367,9 +398,8 @@ export default function LiveFleetMap({
 
   return (
     <div
-      className={`relative w-full h-[450px] lg:h-[500px] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950 ${
-        mapType === "dark" ? "osm-dark-tiles" : ""
-      }`}
+      className={`relative w-full h-[450px] lg:h-[500px] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950 ${mapType === "dark" ? "osm-dark-tiles" : ""
+        }`}
     >
       <style jsx global>{`
         .clean-plate-tooltip {
@@ -434,33 +464,30 @@ export default function LiveFleetMap({
           <button
             type="button"
             onClick={() => setMapType("street")}
-            className={`rounded-xl px-2.5 py-1 font-semibold transition-all ${
-              mapType === "street"
-                ? "bg-cyan-600 text-white shadow-sm"
-                : "text-slate-400 hover:text-white"
-            }`}
+            className={`rounded-xl px-2.5 py-1 font-semibold transition-all ${mapType === "street"
+              ? "bg-cyan-600 text-white shadow-sm"
+              : "text-slate-400 hover:text-white"
+              }`}
           >
             🗺️ Chuẩn
           </button>
           <button
             type="button"
             onClick={() => setMapType("dark")}
-            className={`rounded-xl px-2.5 py-1 font-semibold transition-all ${
-              mapType === "dark"
-                ? "bg-cyan-600 text-white shadow-sm"
-                : "text-slate-400 hover:text-white"
-            }`}
+            className={`rounded-xl px-2.5 py-1 font-semibold transition-all ${mapType === "dark"
+              ? "bg-cyan-600 text-white shadow-sm"
+              : "text-slate-400 hover:text-white"
+              }`}
           >
             🌙 Tối
           </button>
           <button
             type="button"
             onClick={() => setMapType("satellite")}
-            className={`rounded-xl px-2.5 py-1 font-semibold transition-all ${
-              mapType === "satellite"
-                ? "bg-cyan-600 text-white shadow-sm"
-                : "text-slate-400 hover:text-white"
-            }`}
+            className={`rounded-xl px-2.5 py-1 font-semibold transition-all ${mapType === "satellite"
+              ? "bg-cyan-600 text-white shadow-sm"
+              : "text-slate-400 hover:text-white"
+              }`}
           >
             🛰️ Vệ tinh
           </button>

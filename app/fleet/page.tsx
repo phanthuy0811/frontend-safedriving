@@ -43,30 +43,30 @@ const LiveFleetMap = dynamic(
 const DEFAULT_SEED_VEHICLES: VehicleResponse[] = [
   {
     id: "f8a12345-0000-0000-0000-000000000001",
-    plate_number: "30G-456.78",
-    status: "IN_USE",
-    assigned_driver_name: "Nguyễn Văn A (App Mobile)",
-    vehicle_type_name: "VinFast VF8 Eco (Điện)",
-    odometer_km: 12540,
-    device_id: "DEV-VF8-01",
+    vehicleTypeId: 1, plateNumber: "30G-456.78",
+    status: "IN_SERVICE",
+    assignedDriverName: "Nguyễn Văn A (App Mobile)",
+    vehicleTypeName: "VinFast VF8 Eco (Điện)",
+    odometerKm: 12540,
+    deviceId: "DEV-VF8-01",
   },
   {
     id: "f8a12345-0000-0000-0000-000000000002",
-    plate_number: "29A-888.99",
+    vehicleTypeId: 2, plateNumber: "29A-888.99",
     status: "AVAILABLE",
-    assigned_driver_name: "Trần Tuấn Tài",
-    vehicle_type_name: "Toyota HiAce 16 chỗ",
-    odometer_km: 84200,
-    device_id: "DEV-HIACE-02",
+    assignedDriverName: "Trần Tuấn Tài",
+    vehicleTypeName: "Toyota HiAce 16 chỗ",
+    odometerKm: 84200,
+    deviceId: "DEV-HIACE-02",
   },
   {
     id: "f8a12345-0000-0000-0000-000000000003",
-    plate_number: "51B-123.45",
-    status: "IN_USE",
-    assigned_driver_name: "Lê Hoàng Minh",
-    vehicle_type_name: "Hyundai Universe 45 chỗ",
-    odometer_km: 215600,
-    device_id: "DEV-UNI-03",
+    vehicleTypeId: 3, plateNumber: "51B-123.45",
+    status: "IN_SERVICE",
+    assignedDriverName: "Lê Hoàng Minh",
+    vehicleTypeName: "Hyundai Universe 45 chỗ",
+    odometerKm: 215600,
+    deviceId: "DEV-UNI-03",
   },
 ];
 
@@ -140,7 +140,7 @@ export default function FleetPage() {
 
   // Quick stats
   const totalVehicles = vehicles.length;
-  const inUseCount = vehicles.filter((v) => v.status === "IN_USE").length;
+  const inUseCount = vehicles.filter((v) => v.status === "IN_SERVICE").length;
   const availableCount = vehicles.filter((v) => v.status === "AVAILABLE").length;
   const liveReportingCount = Object.keys(vehiclesGps).length;
 
@@ -199,7 +199,7 @@ export default function FleetPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-            <span className="text-xs text-slate-400 block mb-1">Đang trong ca (IN_USE)</span>
+            <span className="text-xs text-slate-400 block mb-1">Đang trong ca (IN_SERVICE)</span>
             <div className="text-2xl sm:text-3xl font-bold font-mono text-cyan-400">
               {inUseCount}
             </div>
@@ -245,7 +245,7 @@ export default function FleetPage() {
         {/* Filter Toolbar & Vehicles List Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-2">
-            {(["ALL", "IN_USE", "AVAILABLE", "MAINTENANCE"] as const).map(
+            {(["ALL", "IN_SERVICE", "AVAILABLE", "MAINTENANCE"] as const).map(
               (st) => (
                 <button
                   key={st}
@@ -259,8 +259,8 @@ export default function FleetPage() {
                 >
                   {st === "ALL"
                     ? "Tất cả"
-                    : st === "IN_USE"
-                    ? "Đang chạy (IN_USE)"
+                    : st === "IN_SERVICE"
+                    ? "Đang chạy (IN_SERVICE)"
                     : st === "AVAILABLE"
                     ? "Sẵn sàng (AVAILABLE)"
                     : "Bảo dưỡng (MAINTENANCE)"}
@@ -313,7 +313,7 @@ export default function FleetPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {vehicles.map((v) => {
-              const liveGps = vehiclesGps[v.id] || vehiclesGps[v.plate_number];
+              const liveGps = vehiclesGps[v.id] || vehiclesGps[v.plateNumber];
               const isSelected = selectedVehicleId === v.id;
               return (
                 <div
@@ -331,7 +331,7 @@ export default function FleetPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="text-lg font-bold font-mono text-white tracking-wide">
-                            {v.plate_number}
+                            {v.plateNumber}
                           </h3>
                           {liveGps && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
@@ -341,13 +341,13 @@ export default function FleetPage() {
                           )}
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">
-                          {v.vehicle_type_name || "Xe vận chuyển tiêu chuẩn"}
+                          {v.vehicleTypeName || "Xe vận chuyển tiêu chuẩn"}
                         </p>
                       </div>
 
                       <span
                         className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          v.status === "IN_USE"
+                          v.status === "IN_SERVICE"
                             ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
                             : v.status === "AVAILABLE"
                             ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
@@ -363,15 +363,15 @@ export default function FleetPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-slate-400">Tài xế phân công:</span>
                         <span className="font-semibold text-slate-200">
-                          {v.assigned_driver_name || "Chưa phân công"}
+                          {v.assignedDriverName || "Chưa phân công"}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between">
                         <span className="text-slate-400">Đồng hồ Odometer:</span>
                         <span className="font-mono text-slate-200">
-                          {v.odometer_km !== undefined
-                            ? `${v.odometer_km.toLocaleString()} km`
+                          {v.odometerKm !== undefined
+                            ? `${v.odometerKm.toLocaleString()} km`
                             : "0 km"}
                         </span>
                       </div>
@@ -379,7 +379,7 @@ export default function FleetPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-slate-400">Mã thiết bị giám sát:</span>
                         <span className="font-mono text-slate-400 truncate max-w-[150px]">
-                          {v.device_id || "Chưa gán"}
+                          {v.deviceId || "Chưa gán"}
                         </span>
                       </div>
                     </div>
@@ -415,7 +415,7 @@ export default function FleetPage() {
                         onClick={(e) => {
                           e.stopPropagation();
                           setAssignModalVehicle(v);
-                          setDriverIdInput(v.assigned_driver_id || "");
+                          setDriverIdInput(v.assignedDriverId || "");
                         }}
                         className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-cyan-400 hover:bg-slate-700 hover:text-white transition-colors"
                       >
@@ -440,7 +440,7 @@ export default function FleetPage() {
 
           <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl z-10">
             <h3 className="text-base font-bold text-white mb-1">
-              Phân công tài xế cho xe {assignModalVehicle.plate_number}
+              Phân công tài xế cho xe {assignModalVehicle.plateNumber}
             </h3>
             <p className="text-xs text-slate-400 mb-4">
               Nhập mã định danh (Driver UUID) của tài xế phụ trách phương tiện.
