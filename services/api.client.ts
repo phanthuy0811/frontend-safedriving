@@ -1,6 +1,7 @@
 import { ApiResponse } from "@/types/common";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
 const TOKEN_KEY = "safe_driving_token";
 
 export class ApiError extends Error {

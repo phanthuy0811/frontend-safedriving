@@ -196,16 +196,29 @@ export default function HitlReviewModal({
 
                 <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-900 flex items-center justify-center">
                   {alert?.snapshot_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={alert.snapshot_url}
-                      alt="Ảnh vi phạm"
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        // Fallback on image load error
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                    />
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={
+                          typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+                            ? alert.snapshot_url.replace('//localhost:9000', `//${window.location.hostname}:9000`).replace('//127.0.0.1:9000', `//${window.location.hostname}:9000`)
+                            : alert.snapshot_url
+                        }
+                        alt="Ảnh vi phạm"
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                          const errDiv = document.getElementById("snapshot-error-msg");
+                          if (errDiv) errDiv.style.display = "flex";
+                        }}
+                      />
+                      <div id="snapshot-error-msg" style={{ display: "none" }} className="flex-col items-center justify-center p-6 text-amber-400 text-center">
+                        <p className="text-xs font-medium">Không thể hiển thị ảnh từ MinIO S3</p>
+                        <a href={alert.snapshot_url} target="_blank" rel="noreferrer" className="text-[11px] underline text-cyan-400 mt-1 block">
+                          Mở ảnh trực tiếp
+                        </a>
+                      </div>
+                    </>
                   ) : (
                     <div className="text-center p-6 text-slate-500">
                       <svg
