@@ -8,6 +8,7 @@ import {
   deleteTrip,
   startTrip,
   endTrip,
+  autoDispatchTrip,
   getTripGpsTracks,
 } from "@/services/trip.service";
 import { getAllVehicles } from "@/services/vehicle.service";
@@ -477,6 +478,16 @@ export default function TripsPage() {
     }
   };
 
+  // Auto-dispatch Trip
+  const handleAutoDispatch = async (id: string) => {
+    try {
+      await autoDispatchTrip(id);
+      loadData();
+    } catch (err) {
+      alert("Lỗi nổ đơn tự động: " + (err as ApiError).message);
+    }
+  };
+
   // View GPS Tracks
   const handleViewTracks = async (t: TripResponse) => {
     try {
@@ -680,6 +691,16 @@ export default function TripsPage() {
 
                       {/* Actions */}
                       <td className="px-5 py-4 text-right space-x-2">
+                        {t.status === "PLANNED" && !t.vehicleId && (
+                          <button
+                            onClick={() => handleAutoDispatch(t.id)}
+                            title="Tự động tìm xe và tài xế rảnh nổ đơn"
+                            className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
+                          >
+                            ⚡ Nổ đơn
+                          </button>
+                        )}
+
                         {t.status === "PLANNED" || t.status === "ASSIGNED" ? (
                           <button
                             onClick={() => handleStartTrip(t.id)}

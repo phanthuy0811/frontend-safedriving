@@ -47,6 +47,12 @@ export async function endTrip(id: string, distanceKm?: number): Promise<TripResp
   return response.data!;
 }
 
+// POST /trips/{id}/auto-dispatch — tự động nổ đơn phân công
+export async function autoDispatchTrip(id: string): Promise<TripResponse> {
+  const response = await apiClient.post<TripResponse>(`/trips/${id}/auto-dispatch`);
+  return response.data!;
+}
+
 // GET /trips/{id}/tracks — lấy vệt tọa độ GPS
 export async function getTripGpsTracks(id: string): Promise<TripGpsTrackResponse[]> {
   const response = await apiClient.get<TripGpsTrackResponse[]>(`/trips/${id}/tracks`);
