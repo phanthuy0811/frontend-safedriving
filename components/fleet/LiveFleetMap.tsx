@@ -248,38 +248,38 @@ export default function LiveFleetMap({
             display: flex;
             align-items: center;
             gap: 6px;
-            background: #064e3b;
-            color: #ecfdf5;
+            background: #ffffff;
+            color: #065f46;
             font-family: monospace, sans-serif;
             font-size: 11px;
             font-weight: 800;
             padding: 3px 10px;
             border-radius: 9999px;
-            border: 2px solid #34d399;
-            box-shadow: 0 0 16px rgba(16, 185, 129, 0.8);
+            border: 2px solid #10b981;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
             white-space: nowrap;
           ">
             <span class="pulse-beacon"></span>
-            <span style="color:#6ee7b7;font-weight:bold;">[LIVE GPS THỰC TẾ]</span>
-            <span>🚗 ${vehicle.plateNumber}</span>
+            <span style="color:#059669;font-weight:bold;">[LIVE GPS THỰC TẾ]</span>
+            <span style="color:#0f172a;">🚗 ${vehicle.plateNumber}</span>
           </div>`
         : `<div style="
             display: flex;
             align-items: center;
             gap: 4px;
-            background: #0f172a;
-            color: #ffffff;
+            background: #ffffff;
+            color: #0f172a;
             font-family: monospace, sans-serif;
             font-size: 11px;
             font-weight: 700;
-            padding: 2px 8px;
+            padding: 3px 8px;
             border-radius: 8px;
-            border: 1px solid ${dotColor};
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            border: 1.5px solid #cbd5e1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
             white-space: nowrap;
           ">
             <span>🚗 ${vehicle.plateNumber}</span>
-            <span style="color:#94a3b8;font-size:9px;font-weight:normal;">(Xe mẫu)</span>
+            <span style="color:#64748b;font-size:9px;font-weight:normal;">(Xe mẫu)</span>
           </div>`;
 
       circleDot.bindTooltip(tooltipContent, {
@@ -398,7 +398,7 @@ export default function LiveFleetMap({
 
   return (
     <div
-      className={`relative w-full h-[450px] lg:h-[500px] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950 ${mapType === "dark" ? "osm-dark-tiles" : ""
+      className={`relative w-full h-[450px] lg:h-[500px] rounded-3xl overflow-hidden border border-gray-200 shadow-sm bg-white ${mapType === "dark" ? "osm-dark-tiles" : ""
         }`}
     >
       <style jsx global>{`
@@ -421,7 +421,7 @@ export default function LiveFleetMap({
           width: 8px;
           height: 8px;
           border-radius: 50%;
-          background: #34d399;
+          background: #10b981;
           animation: beacon-pulse 1.5s infinite ease-in-out;
         }
       `}</style>
@@ -431,17 +431,17 @@ export default function LiveFleetMap({
 
       {/* Floating Map Header */}
       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/90 px-4 py-2.5 backdrop-blur-md shadow-xl flex items-center gap-3">
+        <div className="rounded-2xl border border-gray-200/90 bg-white/95 px-4 py-2.5 backdrop-blur-md shadow-md flex items-center gap-3">
           <span className="relative flex h-2.5 w-2.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
           </span>
           <div>
-            <h4 className="text-xs font-bold text-white flex items-center gap-2">
+            <h4 className="text-xs font-bold text-gray-900 flex items-center gap-2">
               Bản đồ Giám sát Đội xe Trực tuyến
             </h4>
-            <p className="text-[10px] text-slate-400">
-              Đã gán xe <strong className="text-emerald-400">30G-456.78</strong> cho ứng dụng điện thoại
+            <p className="text-[10px] text-gray-500">
+              Đã gán xe <strong className="text-emerald-600 font-semibold">30G-456.78</strong> cho ứng dụng điện thoại
             </p>
           </div>
         </div>
@@ -454,19 +454,19 @@ export default function LiveFleetMap({
           type="button"
           onClick={handleFocusRealPhone}
           title="Tập trung vào vị trí điện thoại thật (Vinhomes)"
-          className="rounded-xl border border-emerald-500/60 bg-emerald-950/85 px-3 py-1.5 text-xs font-semibold text-emerald-300 shadow-xl backdrop-blur-md hover:bg-emerald-900 transition-all flex items-center gap-1.5"
+          className="rounded-xl border border-emerald-300 bg-emerald-50/95 px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur-md hover:bg-emerald-100 transition-all flex items-center gap-1.5"
         >
           <span className="pulse-beacon"></span>
           <span>🎯 Xe Thật (Vinhomes)</span>
         </button>
 
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/95 p-1 backdrop-blur-md shadow-xl flex items-center gap-1 text-xs">
+        <div className="rounded-2xl border border-gray-200 bg-white/95 p-1 backdrop-blur-md shadow-sm flex items-center gap-1 text-xs">
           <button
             type="button"
             onClick={() => setMapType("street")}
             className={`rounded-xl px-2.5 py-1 font-semibold transition-all ${mapType === "street"
-              ? "bg-cyan-600 text-white shadow-sm"
-              : "text-slate-400 hover:text-white"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               }`}
           >
             🗺️ Chuẩn
@@ -475,8 +475,8 @@ export default function LiveFleetMap({
             type="button"
             onClick={() => setMapType("dark")}
             className={`rounded-xl px-2.5 py-1 font-semibold transition-all ${mapType === "dark"
-              ? "bg-cyan-600 text-white shadow-sm"
-              : "text-slate-400 hover:text-white"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               }`}
           >
             🌙 Tối
@@ -485,8 +485,8 @@ export default function LiveFleetMap({
             type="button"
             onClick={() => setMapType("satellite")}
             className={`rounded-xl px-2.5 py-1 font-semibold transition-all ${mapType === "satellite"
-              ? "bg-cyan-600 text-white shadow-sm"
-              : "text-slate-400 hover:text-white"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               }`}
           >
             🛰️ Vệ tinh
@@ -497,10 +497,10 @@ export default function LiveFleetMap({
           type="button"
           onClick={handleFitAll}
           title="Thu phóng xem toàn bộ xe"
-          className="rounded-xl border border-slate-700 bg-slate-900/90 p-2 text-xs font-semibold text-white shadow-xl backdrop-blur-md hover:bg-slate-800 transition-colors"
+          className="rounded-xl border border-gray-200 bg-white/95 p-2 text-xs font-semibold text-gray-700 shadow-sm backdrop-blur-md hover:bg-gray-100 transition-colors"
         >
           <svg
-            className="h-4 w-4 text-cyan-400"
+            className="h-4 w-4 text-blue-600"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -516,22 +516,22 @@ export default function LiveFleetMap({
       </div>
 
       {/* Map Legend Footer */}
-      <div className="absolute bottom-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/85 px-4 py-2 backdrop-blur-md text-[11px] text-slate-400">
+      <div className="absolute bottom-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-gray-200/90 bg-white/90 px-4 py-2.5 backdrop-blur-md text-[11px] text-gray-600 shadow-sm">
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5 font-medium text-emerald-300">
+          <span className="flex items-center gap-1.5 font-medium text-emerald-700">
             <span className="pulse-beacon"></span>
             Xe Thật: Đang phát GPS từ điện thoại (Vinhomes)
           </span>
-          <span className="flex items-center gap-1.5 font-medium text-slate-300">
-            <span className="h-2.5 w-2.5 rounded-full bg-sky-500 border border-white"></span>
+          <span className="flex items-center gap-1.5 font-medium text-blue-700">
+            <span className="h-2.5 w-2.5 rounded-full bg-blue-500 border border-white"></span>
             Xanh dương: Đang chạy
           </span>
-          <span className="flex items-center gap-1.5 font-medium text-slate-400">
-            <span className="h-2.5 w-2.5 rounded-full bg-slate-500 border border-white"></span>
+          <span className="flex items-center gap-1.5 font-medium text-gray-500">
+            <span className="h-2.5 w-2.5 rounded-full bg-gray-400 border border-white"></span>
             Xám: Đang dừng
           </span>
         </div>
-        <span className="text-[10px] text-cyan-400 font-mono">
+        <span className="text-[10px] text-blue-600 font-medium">
           Xe 30G-456.78 liên kết trực tiếp ứng dụng AppDetect
         </span>
       </div>
