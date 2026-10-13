@@ -6,14 +6,15 @@ import {
   createTrip,
   updateTrip,
   deleteTrip,
-  startTrip,
-  endTrip,
   autoDispatchTrip,
   getTripGpsTracks,
 } from "@/services/trip.service";
 import { getAllVehicles } from "@/services/vehicle.service";
+import { getAllRoutes } from "@/services/route.service";
+import { getAllAssignments } from "@/services/assignment.service";
 import { TripResponse, TripRequest, TripStatus, TripGpsTrackResponse } from "@/types/trip";
 import { VehicleResponse } from "@/types/vehicle";
+import { RouteResponse } from "@/types/route";
 import { ApiError } from "@/services/api.client";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -76,6 +77,7 @@ const EMPTY_FORM: TripRequest = {
   status: "PLANNED",
   distanceKm: 0,
   note: "",
+  routeId: "",
 };
 
 // ─── Trip Modal ───────────────────────────────────────────────────────────────
@@ -87,6 +89,7 @@ interface ModalProps {
   form: TripRequest;
   setForm: (f: TripRequest) => void;
   vehicles: VehicleResponse[];
+  routes: RouteResponse[];
   loading: boolean;
   error: string | null;
   isEdit: boolean;
@@ -99,10 +102,18 @@ function TripModal({
   form,
   setForm,
   vehicles,
+  routes,
   loading,
   error,
   isEdit,
 }: ModalProps) {
+  // Chỉ lấy những tuyến đường đang trong trạng thái hoạt động (isActive !== false)
+  // Nếu đang sửa chuyến đi (isEdit), vẫn cho phép hiển thị tuyến đường hiện tại của chuyến
+  const activeRoutes = routes.filter((r) => {
+    if (isEdit && r.id === form.routeId) return true;
+    return r.isActive !== false;
+  });
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
@@ -130,6 +141,72 @@ function TripModal({
               {error}
             </div>
           )}
+
+          {/* Route Select */}
+          <div>
+            <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+              🛣️ Tuyến đường vận chuyển <span className="text-blue-600 font-normal">(Chọn để tự động điền Điểm A, Điểm B, Cự ly)</span>
+            </label>
+            <select
+              value={form.routeId || ""}
+              onChange={(e) => {
+                const selectedRouteId = e.target.value;
+                const foundRoute = activeRoutes.find((r) => r.id === selectedRouteId);
+                if (foundRoute) {
+                  // Phân tách Điểm đi - Điểm đến từ routeName (nếu có dấu " - " hoặc " ➔ ")
+                  let start = form.startLocation;
+                  let end = form.endLocation;
+                  if (foundRoute.routeName.includes(" - ")) {
+                    const parts = foundRoute.routeName.split(" - ");
+                    start = parts[0]?.trim() || start;
+                    end = parts[1]?.trim() || end;
+                  } else if (foundRoute.routeName.includes(" ➔ ")) {
+                    const parts = foundRoute.routeName.split(" ➔ ");
+                    start = parts[0]?.trim() || start;
+                    end = parts[1]?.trim() || end;
+                  } else {
+                    start = foundRoute.routeName;
+                  }
+
+                  // Tự động tính thời gian đến dự kiến theo standardDurationMin nếu có
+                  let newPlannedEndTime = form.plannedEndTime;
+                  if (foundRoute.standardDurationMin && form.plannedStartTime) {
+                    const startDt = new Date(form.plannedStartTime);
+                    if (!isNaN(startDt.getTime())) {
+                      const endDt = new Date(startDt.getTime() + foundRoute.standardDurationMin * 60 * 1000);
+                      newPlannedEndTime = toLocalDateTime(endDt.toISOString().slice(0, 16));
+                    }
+                  }
+
+                  setForm({
+                    ...form,
+                    routeId: selectedRouteId,
+                    startLocation: start,
+                    endLocation: end,
+                    distanceKm: foundRoute.distanceKm || form.distanceKm,
+                    plannedEndTime: newPlannedEndTime,
+                  });
+                } else {
+                  setForm({
+                    ...form,
+                    routeId: "",
+                  });
+                }
+              }}
+              className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
+            >
+              <option value="">
+                {activeRoutes.length === 0
+                  ? "-- Không có tuyến đường nào đang hoạt động --"
+                  : "-- Tùy chọn: Chọn tuyến đường hoặc tự nhập bên dưới --"}
+              </option>
+              {activeRoutes.map((r) => (
+                <option key={r.id} value={r.id}>
+                  [{r.code}] {r.routeName} ({r.distanceKm} km {r.standardDurationMin ? `- ~${r.standardDurationMin} phút` : ""})
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Start Location */}
           <div>
@@ -159,23 +236,40 @@ function TripModal({
             />
           </div>
 
-          {/* Vehicle Select */}
-          <div>
-            <label className="block mb-1.5 text-xs font-semibold text-gray-700">
-              🚗 Phương tiện thực hiện
-            </label>
-            <select
-              value={form.vehicleId || ""}
-              onChange={(e) => setForm({ ...form, vehicleId: e.target.value })}
-              className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-            >
-              <option value="">-- Chưa gán xe (gán sau) --</option>
-              {vehicles.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.plateNumber} ({v.vehicleTypeName || "Xe"} - {v.status === "AVAILABLE" ? "Sẵn sàng" : "Đang chạy"})
-                </option>
-              ))}
-            </select>
+          {/* Vehicle Select & Distance Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+                🚗 Phương tiện / Loại xe thực hiện
+              </label>
+              <select
+                value={form.vehicleId || ""}
+                onChange={(e) => setForm({ ...form, vehicleId: e.target.value })}
+                className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+              >
+                <option value="">-- Chưa gán xe (gán sau) --</option>
+                {vehicles.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.plateNumber} ({v.vehicleTypeName || "Xe"} - {v.status === "AVAILABLE" ? "Sẵn sàng" : "Đang chạy"})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+                📏 Cự ly dự kiến (km)
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                placeholder="VD: 120"
+                value={form.distanceKm || ""}
+                onChange={(e) =>
+                  setForm({ ...form, distanceKm: parseFloat(e.target.value) || 0 })
+                }
+                className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+              />
+            </div>
           </div>
 
           {/* Times Grid */}
@@ -348,6 +442,7 @@ function TracksModal({ trip, tracks, onClose }: TracksModalProps) {
 export default function TripsPage() {
   const [trips, setTrips] = useState<TripResponse[]>([]);
   const [vehicles, setVehicles] = useState<VehicleResponse[]>([]);
+  const [routes, setRoutes] = useState<RouteResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -371,23 +466,58 @@ export default function TripsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [tripsData, vehiclesData] = await Promise.all([
-        getAllTrips(selectedStatus === "ALL" ? undefined : selectedStatus),
+      const [tripsData, vehiclesData, routesData, assignmentsData] = await Promise.all([
+        getAllTrips(),
         getAllVehicles(),
+        getAllRoutes(),
+        getAllAssignments().catch(() => []),
       ]);
-      setTrips(tripsData);
+      const enrichedTrips = tripsData.map((t) => {
+        const assignment = assignmentsData.find((a) => a.tripId === t.id);
+        if (assignment) {
+          return {
+            ...t,
+            driverName: t.driverName || assignment.driverName,
+            vehiclePlateNumber: t.vehiclePlateNumber || assignment.vehiclePlate,
+            vehicleId: t.vehicleId || assignment.vehicleId,
+            driverId: t.driverId || assignment.driverId,
+            status: (t.status === "PLANNED" ? "ASSIGNED" : t.status) as TripStatus,
+          };
+        }
+        // Nếu chuyến đi đang ghi là ASSIGNED nhưng không có phân công nào (do phân công đã bị xoá)
+        // -> Đưa về trạng thái PLANNED (Lên kế hoạch) và giải phóng tài xế/xe
+        if (t.status === "ASSIGNED") {
+          return {
+            ...t,
+            driverName: undefined,
+            driverId: undefined,
+            vehicleId: undefined,
+            vehiclePlateNumber: undefined,
+            status: "PLANNED" as TripStatus,
+          };
+        }
+        return t;
+      });
+      setTrips(enrichedTrips);
       setVehicles(vehiclesData);
+      setRoutes(routesData);
     } catch (err) {
       const e = err as ApiError;
       setError(e.message || "Không thể tải danh sách chuyến đi");
     } finally {
       setLoading(false);
     }
-  }, [selectedStatus]);
+  }, []);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Lọc chuyến đi theo tab trạng thái đang chọn
+  const filteredTrips = trips.filter((t) => {
+    if (selectedStatus === "ALL") return true;
+    return t.status === selectedStatus;
+  });
 
   // Handle Create / Edit Submit
   const handleSubmit = async () => {
@@ -441,30 +571,10 @@ export default function TripsPage() {
       status: t.status,
       distanceKm: t.distanceKm || 0,
       note: t.note || "",
+      routeId: t.routeId || "",
     });
     setModalError(null);
     setModalOpen(true);
-  };
-
-  // Start Trip
-  const handleStartTrip = async (id: string) => {
-    try {
-      await startTrip(id);
-      loadData();
-    } catch (err) {
-      alert("Không thể bắt đầu chuyến: " + (err as ApiError).message);
-    }
-  };
-
-  // End Trip
-  const handleEndTrip = async (id: string) => {
-    if (!confirm("Xác nhận hoàn thành chuyến đi này? Xe sẽ được giải phóng về trạng thái Sẵn sàng.")) return;
-    try {
-      await endTrip(id);
-      loadData();
-    } catch (err) {
-      alert("Không thể kết thúc chuyến: " + (err as ApiError).message);
-    }
   };
 
   // Delete Trip
@@ -537,11 +647,10 @@ export default function TripsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setSelectedStatus("ALL")}
-            className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
-              selectedStatus === "ALL"
+            className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${selectedStatus === "ALL"
                 ? "bg-gray-900 text-white shadow-sm"
                 : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
-            }`}
+              }`}
           >
             Tất cả ({trips.length})
           </button>
@@ -551,11 +660,10 @@ export default function TripsPage() {
               <button
                 key={st}
                 onClick={() => setSelectedStatus(st)}
-                className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                  selectedStatus === st
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${selectedStatus === st
                     ? "bg-blue-600 text-white shadow-sm"
                     : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
-                }`}
+                  }`}
               >
                 {STATUS_LABELS[st]} ({count})
               </button>
@@ -573,7 +681,7 @@ export default function TripsPage() {
             <div className="py-16 text-center text-red-500 text-sm">
               {error}
             </div>
-          ) : trips.length === 0 ? (
+          ) : filteredTrips.length === 0 ? (
             <div className="py-20 text-center text-gray-400 text-sm">
               Không có chuyến đi nào phù hợp.
             </div>
@@ -592,10 +700,17 @@ export default function TripsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {trips.map((t) => (
+                  {filteredTrips.map((t) => (
                     <tr key={t.id} className="hover:bg-gray-50/80 transition-colors">
                       {/* Route A -> B */}
                       <td className="px-5 py-4">
+                        {t.routeName && (
+                          <div className="mb-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                              🛣️ {t.routeName}
+                            </span>
+                          </div>
+                        )}
                         <div className="font-semibold text-gray-900 flex items-center gap-1.5">
                           <span>📍</span>
                           <span>{t.startLocation || "Điểm đón"}</span>
@@ -655,18 +770,16 @@ export default function TripsPage() {
                       {/* Safety & AI Badges */}
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap gap-1.5 text-[11px]">
-                          <span className={`px-2 py-0.5 rounded-full border ${
-                            (t.somnolenceCount || 0) > 0
+                          <span className={`px-2 py-0.5 rounded-full border ${(t.somnolenceCount || 0) > 0
                               ? "bg-red-50 text-red-600 border-red-200 font-bold"
                               : "bg-gray-50 text-gray-500 border-gray-200"
-                          }`}>
+                            }`}>
                             💤 {t.somnolenceCount || 0} Ngủ gật
                           </span>
-                          <span className={`px-2 py-0.5 rounded-full border ${
-                            (t.incidentCount || 0) > 0
+                          <span className={`px-2 py-0.5 rounded-full border ${(t.incidentCount || 0) > 0
                               ? "bg-amber-50 text-amber-600 border-amber-200 font-bold"
                               : "bg-gray-50 text-gray-500 border-gray-200"
-                          }`}>
+                            }`}>
                             ⚠️ {t.incidentCount || 0} Sự cố
                           </span>
                         </div>
@@ -681,9 +794,8 @@ export default function TripsPage() {
                       {/* Status */}
                       <td className="px-5 py-4">
                         <span
-                          className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                            STATUS_COLORS[t.status]
-                          }`}
+                          className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_COLORS[t.status]
+                            }`}
                         >
                           {STATUS_LABELS[t.status]}
                         </span>
@@ -700,27 +812,6 @@ export default function TripsPage() {
                             ⚡ Nổ đơn
                           </button>
                         )}
-
-                        {t.status === "PLANNED" || t.status === "ASSIGNED" ? (
-                          <button
-                            onClick={() => handleStartTrip(t.id)}
-                            title="Bắt đầu chuyến đi"
-                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors"
-                          >
-                            ▶ Bắt đầu
-                          </button>
-                        ) : null}
-
-                        {t.status === "IN_PROGRESS" ? (
-                          <button
-                            onClick={() => handleEndTrip(t.id)}
-                            title="Kết thúc chuyến đi"
-                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
-                          >
-                            🏁 Kết thúc
-                          </button>
-                        ) : null}
-
                         <button
                           onClick={() => openEditModal(t)}
                           className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
@@ -753,6 +844,7 @@ export default function TripsPage() {
           form={form}
           setForm={setForm}
           vehicles={vehicles}
+          routes={routes}
           loading={modalLoading}
           error={modalError}
           isEdit={isEdit}

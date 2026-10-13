@@ -2,9 +2,8 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { useAuth } from "@/context/AuthContext";
 import { useRealtime } from "@/context/RealtimeContext";
-import { getAllVehicles, assignDriverToVehicle } from "@/services/vehicle.service";
+import { getAllVehicles } from "@/services/vehicle.service";
 import { VehicleResponse, VehicleStatus } from "@/types/vehicle";
 
 // Dynamic import with SSR disabled for Leaflet Map
@@ -47,7 +46,6 @@ const DEFAULT_SEED_VEHICLES: VehicleResponse[] = [
     assignedDriverName: "Nguyễn Văn A (App Mobile)",
     vehicleTypeName: "VinFast VF8 Eco (Điện)",
     odometerKm: 12540,
-    deviceId: "DEV-VF8-01",
   },
   {
     id: "f8a12345-0000-0000-0000-000000000002",
@@ -56,7 +54,6 @@ const DEFAULT_SEED_VEHICLES: VehicleResponse[] = [
     assignedDriverName: "Trần Tuấn Tài",
     vehicleTypeName: "Toyota HiAce 16 chỗ",
     odometerKm: 84200,
-    deviceId: "DEV-HIACE-02",
   },
   {
     id: "f8a12345-0000-0000-0000-000000000003",
@@ -65,12 +62,10 @@ const DEFAULT_SEED_VEHICLES: VehicleResponse[] = [
     assignedDriverName: "Lê Hoàng Minh",
     vehicleTypeName: "Hyundai Universe 45 chỗ",
     odometerKm: 215600,
-    deviceId: "DEV-UNI-03",
   },
 ];
 
 export default function FleetPage() {
-  const { isAuthenticated } = useAuth();
   const { vehiclesGps } = useRealtime();
 
   const [vehicles, setVehicles] = useState<VehicleResponse[]>(DEFAULT_SEED_VEHICLES);
@@ -78,66 +73,32 @@ export default function FleetPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
 
-  // Assign driver modal state
-  const [assignModalVehicle, setAssignModalVehicle] =
-    useState<VehicleResponse | null>(null);
-  const [driverIdInput, setDriverIdInput] = useState("");
-  const [isAssigning, setIsAssigning] = useState(false);
-  const [assignError, setAssignError] = useState<string | null>(null);
-
   const fetchVehicles = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await getAllVehicles(
-        filterStatus === "ALL" ? undefined : filterStatus
-      );
+      const data = await getAllVehicles();
       if (data && data.length > 0) {
         setVehicles(data);
       } else {
-        const filtered =
-          filterStatus === "ALL"
-            ? DEFAULT_SEED_VEHICLES
-            : DEFAULT_SEED_VEHICLES.filter((v) => v.status === filterStatus);
-        setVehicles(filtered);
+        setVehicles(DEFAULT_SEED_VEHICLES);
       }
     } catch {
-      const filtered =
-        filterStatus === "ALL"
-          ? DEFAULT_SEED_VEHICLES
-          : DEFAULT_SEED_VEHICLES.filter((v) => v.status === filterStatus);
-      setVehicles(filtered);
+      setVehicles(DEFAULT_SEED_VEHICLES);
     } finally {
       setIsLoading(false);
     }
-  }, [filterStatus]);
+  }, []);
 
   useEffect(() => {
     fetchVehicles();
   }, [fetchVehicles]);
 
-  const handleAssignDriver = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!assignModalVehicle || !driverIdInput.trim()) return;
+  // Filtered vehicles according to selected status
+  const filteredVehicles = vehicles.filter((v) =>
+    filterStatus === "ALL" ? true : v.status === filterStatus
+  );
 
-    setIsAssigning(true);
-    setAssignError(null);
-    try {
-      await assignDriverToVehicle(assignModalVehicle.id, driverIdInput.trim());
-      setAssignModalVehicle(null);
-      setDriverIdInput("");
-      fetchVehicles();
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setAssignError(err.message);
-      } else {
-        setAssignError("Lỗi khi gán tài xế cho xe.");
-      }
-    } finally {
-      setIsAssigning(false);
-    }
-  };
-
-  // Quick stats
+  // Quick stats computed on all vehicles
   const totalVehicles = vehicles.length;
   const inUseCount = vehicles.filter((v) => v.status === "IN_SERVICE").length;
   const availableCount = vehicles.filter((v) => v.status === "AVAILABLE").length;
@@ -300,7 +261,7 @@ export default function FleetPage() {
             </svg>
             <p className="text-xs text-gray-500">Đang tải danh sách đội xe...</p>
           </div>
-        ) : vehicles.length === 0 ? (
+        ) : filteredVehicles.length === 0 ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center shadow-sm">
             <p className="text-sm text-gray-500">
               Không tìm thấy phương tiện nào phù hợp với bộ lọc.
@@ -308,7 +269,7 @@ export default function FleetPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {vehicles.map((v) => {
+            {filteredVehicles.map((v) => {
               const liveGps = vehiclesGps[v.id] || vehiclesGps[v.plateNumber];
               const isSelected = selectedVehicleId === v.id;
               return (
@@ -357,7 +318,14 @@ export default function FleetPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-gray-500">Tài xế phụ trách:</span>
                         <span className="font-semibold text-gray-800">
-                          {v.assignedDriverName || "Chưa gán tài xế"}
+                          {v.assignedDriverName ? (
+                            <span className="inline-flex items-center gap-1 text-blue-700 font-semibold">
+                              <span>👨‍✈️</span>
+                              <span>{v.assignedDriverName}</span>
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic">Chưa gán tài xế</span>
+                          )}
                         </span>
                       </div>
 
@@ -367,13 +335,6 @@ export default function FleetPage() {
                           {v.odometerKm !== undefined
                             ? `${v.odometerKm.toLocaleString()} km`
                             : "0 km"}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-500">Mã thiết bị giám sát:</span>
-                        <span className="font-mono text-gray-500 truncate max-w-[150px]">
-                          {v.deviceId || "Chưa gán"}
                         </span>
                       </div>
                     </div>
@@ -397,24 +358,19 @@ export default function FleetPage() {
                     )}
                   </div>
 
-                  {/* Actions */}
+                  {/* Actions / Info */}
                   <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-blue-600 font-medium">
+                    <span className="text-[11px] text-blue-600 font-medium flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
                       {isSelected ? "● Đang xem trên bản đồ" : "Nhấn để định vị"}
                     </span>
-
-                    {isAuthenticated && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAssignModalVehicle(v);
-                          setDriverIdInput(v.assignedDriverId || "");
-                        }}
-                        className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
-                      >
-                        Gán tài xế
-                      </button>
+                    {v.vin && (
+                      <span className="text-[10px] font-mono text-gray-400">
+                        VIN: {v.vin}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -423,68 +379,6 @@ export default function FleetPage() {
           </div>
         )}
       </main>
-
-      {/* Driver Assignment Modal */}
-      {assignModalVehicle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setAssignModalVehicle(null)}
-          />
-
-          <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl z-10">
-            <h3 className="text-base font-bold text-gray-900 mb-1">
-              Gán tài xế cho xe {assignModalVehicle.plateNumber}
-            </h3>
-            <p className="text-xs text-gray-500 mb-4">
-              Nhập mã định danh (Driver UUID) của tài xế phụ trách phương tiện.
-            </p>
-
-            {assignError && (
-              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-                {assignError}
-              </div>
-            )}
-
-            <form onSubmit={handleAssignDriver} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="driver-id"
-                  className="block text-xs font-medium uppercase tracking-wider text-gray-700 mb-1.5"
-                >
-                  Driver ID (UUID)
-                </label>
-                <input
-                  id="driver-id"
-                  type="text"
-                  required
-                  value={driverIdInput}
-                  onChange={(e) => setDriverIdInput(e.target.value)}
-                  placeholder="e.g. d1111111-aaaa-bbbb-cccc-ddddffff0001"
-                  className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setAssignModalVehicle(null)}
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={isAssigning}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isAssigning ? "Đang lưu..." : "Xác nhận gán"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

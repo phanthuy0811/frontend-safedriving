@@ -6,8 +6,11 @@ import {
   createVehicle,
   updateVehicle,
   deleteVehicle,
+  assignDriverToVehicle,
 } from "@/services/vehicle.service";
+import { getAllDrivers } from "@/services/driver.service";
 import { VehicleResponse, VehicleRequest, VehicleStatus } from "@/types/vehicle";
+import { DriverResponse } from "@/types/driver";
 import { ApiError } from "@/services/api.client";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -284,12 +287,188 @@ function ConfirmDeleteModal({
   );
 }
 
+// ─── Modal Gán Tài Xế ─────────────────────────────────────────────────────────
+
+interface AssignDriverModalProps {
+  vehicle: VehicleResponse;
+  drivers: DriverResponse[];
+  onClose: () => void;
+  onSubmit: (driverId: string) => Promise<void>;
+  loading: boolean;
+  error: string | null;
+}
+
+function AssignDriverModal({
+  vehicle,
+  drivers,
+  onClose,
+  onSubmit,
+  loading,
+  error,
+}: AssignDriverModalProps) {
+  const [selectedDriverId, setSelectedDriverId] = useState<string>(
+    vehicle.assignedDriverId || ""
+  );
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDriverId) {
+      setValidationError("Vui lòng chọn tài xế từ danh sách dropdown.");
+      return;
+    }
+    setValidationError(null);
+    onSubmit(selectedDriverId);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Dialog */}
+      <div className="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 bg-gray-50/50">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">
+              Phân công tài xế cho xe
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Chọn tài xế phụ trách điều khiển xe{" "}
+              <span className="font-semibold text-blue-600">{vehicle.plateNumber}</span>
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {(error || validationError) && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">
+              {error || validationError}
+            </div>
+          )}
+
+          {/* Chi tiết xe */}
+          <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl border border-gray-200 bg-gray-50/70 text-xs">
+            <div>
+              <span className="text-gray-500 block">Biển số xe:</span>
+              <span className="font-mono font-bold text-gray-900 text-sm">
+                {vehicle.plateNumber}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Loại xe:</span>
+              <span className="font-medium text-gray-800">
+                {vehicle.vehicleTypeName || "Chưa xác định"}
+              </span>
+            </div>
+            <div className="col-span-2 pt-1.5 border-t border-gray-200/60 flex items-center justify-between">
+              <span className="text-gray-500">Tài xế hiện tại:</span>
+              <span>
+                {vehicle.assignedDriverName ? (
+                  <span className="inline-flex items-center gap-1 font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                    👨‍✈️ {vehicle.assignedDriverName}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">
+                    Chưa gán tài xế
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+
+          {/* Dropmenu chọn tài xế */}
+          <div>
+            <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+              👨‍✈️ Chọn tài xế từ danh sách (Dropdown Menu) <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="select-assign-driver"
+              value={selectedDriverId}
+              onChange={(e) => {
+                setSelectedDriverId(e.target.value);
+                setValidationError(null);
+              }}
+              className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
+            >
+              <option value="">
+                {drivers.length === 0
+                  ? "-- Không có tài xế nào trong hệ thống --"
+                  : "-- Nhấn để chọn tài xế --"}
+              </option>
+              {drivers.map((d) => {
+                const fullName =
+                  d.staff?.fullName ||
+                  `${d.staff?.lastName || ""} ${d.staff?.firstName || ""}`.trim() ||
+                  `Tài xế #${d.id.slice(0, 8)}`;
+                const phone = d.staff?.phone ? ` (SĐT: ${d.staff.phone})` : "";
+                const currentVeh = d.vehicle
+                  ? ` — [Đang lái: ${d.vehicle.plateNumber}]`
+                  : " — [Chưa nhận xe]";
+                return (
+                  <option key={d.id} value={d.id}>
+                    {fullName}{phone}{currentVeh}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div className="rounded-xl bg-blue-50/80 border border-blue-200/80 p-3 text-xs text-blue-800 space-y-1">
+            <p className="font-semibold flex items-center gap-1.5">
+              <span>💡 Hướng dẫn phân công:</span>
+            </p>
+            <p className="text-blue-700 leading-relaxed">
+              Chọn tài xế từ danh sách dropdown ở trên. Khi xác nhận, tài xế sẽ được phân công trực tiếp vào phương tiện này để phục vụ các chuyến đi. Nếu tài xế đang nhận xe khác, hệ thống sẽ tự động cập nhật chuyển xe.
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              Huỷ
+            </button>
+            <button
+              id="assign-driver-submit-btn"
+              type="submit"
+              disabled={loading || drivers.length === 0}
+              className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {loading ? "Đang xử lý..." : "Xác nhận gán tài xế"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<VehicleResponse[]>([]);
+  const [drivers, setDrivers] = useState<DriverResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<VehicleStatus | "ALL">("ALL");
+  const [filterAssignment, setFilterAssignment] = useState<"ALL" | "ASSIGNED" | "UNASSIGNED">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Modal state
@@ -299,6 +478,11 @@ export default function VehiclesPage() {
   const [form, setForm] = useState<VehicleRequest>(EMPTY_FORM);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+
+  // Assign driver modal state
+  const [assignTarget, setAssignTarget] = useState<VehicleResponse | null>(null);
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
 
   // Delete modal
   const [deleteTarget, setDeleteTarget] = useState<VehicleResponse | null>(null);
@@ -313,32 +497,40 @@ export default function VehiclesPage() {
   };
 
   // ── Fetch ──
-  const fetchVehicles = useCallback(async () => {
+  const fetchVehiclesAndDrivers = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getAllVehicles();
-      setVehicles(data);
+      const [vehiclesData, driversData] = await Promise.all([
+        getAllVehicles(),
+        getAllDrivers().catch(() => []),
+      ]);
+      setVehicles(vehiclesData);
+      setDrivers(driversData);
     } catch {
-      showToast("Không thể tải danh sách xe.", "error");
+      showToast("Không thể tải danh sách phương tiện.", "error");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchVehicles();
-  }, [fetchVehicles]);
+    fetchVehiclesAndDrivers();
+  }, [fetchVehiclesAndDrivers]);
 
   // ── Filtered list ──
   const filtered = vehicles.filter((v) => {
     const matchStatus = filterStatus === "ALL" || v.status === filterStatus;
+    const matchAssignment =
+      filterAssignment === "ALL" ||
+      (filterAssignment === "ASSIGNED" ? !!v.assignedDriverName : !v.assignedDriverName);
     const q = searchTerm.toLowerCase();
     const matchSearch =
       !q ||
       v.plateNumber.toLowerCase().includes(q) ||
       (v.vin ?? "").toLowerCase().includes(q) ||
-      v.vehicleTypeName.toLowerCase().includes(q);
-    return matchStatus && matchSearch;
+      v.vehicleTypeName.toLowerCase().includes(q) ||
+      (v.assignedDriverName ?? "").toLowerCase().includes(q);
+    return matchStatus && matchAssignment && matchSearch;
   });
 
   // ── Open create modal ──
@@ -366,6 +558,34 @@ export default function VehiclesPage() {
     setShowModal(true);
   };
 
+  // ── Open assign modal ──
+  const openAssignModal = (v: VehicleResponse) => {
+    setAssignTarget(v);
+    setAssignError(null);
+  };
+
+  // ── Submit assign driver ──
+  const handleAssignSubmit = async (driverId: string) => {
+    if (!assignTarget) return;
+    setAssignLoading(true);
+    setAssignError(null);
+    try {
+      await assignDriverToVehicle(assignTarget.id, driverId);
+      showToast(
+        `Đã phân công tài xế thành công cho xe ${assignTarget.plateNumber}!`,
+        "success"
+      );
+      setAssignTarget(null);
+      await fetchVehiclesAndDrivers();
+    } catch (err) {
+      setAssignError(
+        err instanceof ApiError ? err.message : "Phân công tài xế thất bại."
+      );
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
   // ── Submit create/update ──
   const handleSubmit = async () => {
     if (!form.plateNumber.trim()) {
@@ -388,7 +608,7 @@ export default function VehiclesPage() {
         showToast("Thêm xe mới thành công!", "success");
       }
       setShowModal(false);
-      fetchVehicles();
+      fetchVehiclesAndDrivers();
     } catch (err) {
       setModalError(err instanceof ApiError ? err.message : "Đã xảy ra lỗi.");
     } finally {
@@ -404,7 +624,7 @@ export default function VehiclesPage() {
       await deleteVehicle(deleteTarget.id);
       showToast("Đã xoá xe thành công!", "success");
       setDeleteTarget(null);
-      fetchVehicles();
+      fetchVehiclesAndDrivers();
     } catch (err) {
       showToast(
         err instanceof ApiError ? err.message : "Xoá xe thất bại.",
@@ -421,6 +641,9 @@ export default function VehiclesPage() {
     count: vehicles.filter((v) => v.status === s).length,
   }));
 
+  const assignedCount = vehicles.filter((v) => !!v.assignedDriverName).length;
+  const unassignedCount = vehicles.filter((v) => !v.assignedDriverName).length;
+
   return (
     <div className="flex flex-col h-full bg-transparent text-gray-900">
 
@@ -433,12 +656,14 @@ export default function VehiclesPage() {
             </h1>
             <p className="mt-1 text-sm text-gray-500">
               Tổng cộng <span className="font-semibold text-blue-600">{vehicles.length}</span> xe trong đội
+              {" "}• <span className="text-emerald-600 font-semibold">{assignedCount}</span> đã gán tài xế
+              {" "}• <span className="text-amber-600 font-semibold">{unassignedCount}</span> chưa gán
             </p>
           </div>
           <button
             id="vehicle-add-btn"
             onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-lg shadow-sm hover:bg-blue-700 transition-colors active:scale-95"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-5 py-2.5 text-sm font-semibold shadow-sm hover:bg-blue-700 transition-colors active:scale-95"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -456,11 +681,10 @@ export default function VehiclesPage() {
               onClick={() =>
                 setFilterStatus(filterStatus === status ? "ALL" : status)
               }
-              className={`rounded-2xl border p-4 text-left transition-all hover:scale-[1.02] ${
-                filterStatus === status
+              className={`rounded-2xl border p-4 text-left transition-all hover:scale-[1.02] ${filterStatus === status
                   ? "border-blue-200 bg-blue-50 text-blue-700 ring-1 ring-blue-500/20"
-                  : "border-gray-200 bg-white shadow-sm border-gray-200"
-              }`}
+                  : "border-gray-200 bg-white shadow-sm"
+                }`}
             >
               <div className="text-2xl font-extrabold font-mono text-gray-900">
                 {count}
@@ -490,12 +714,26 @@ export default function VehiclesPage() {
             <input
               id="vehicle-search"
               type="text"
-              placeholder="Tìm theo biển số, VIN, loại xe..."
+              placeholder="Tìm theo biển số, VIN, loại xe, tài xế..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-colors"
             />
           </div>
+          <select
+            id="vehicle-assignment-filter"
+            value={filterAssignment}
+            onChange={(e) =>
+              setFilterAssignment(
+                e.target.value as "ALL" | "ASSIGNED" | "UNASSIGNED"
+              )
+            }
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none transition-colors font-medium"
+          >
+            <option value="ALL">Tất cả phương tiện</option>
+            <option value="ASSIGNED">Đã gán tài xế ({assignedCount})</option>
+            <option value="UNASSIGNED">Chưa gán tài xế ({unassignedCount})</option>
+          </select>
           <select
             id="vehicle-status-filter"
             value={filterStatus}
@@ -514,7 +752,7 @@ export default function VehiclesPage() {
         </div>
 
         {/* ── Table ── */}
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm border-gray-200 overflow-hidden">
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-20 text-gray-500 text-sm">
               <svg className="w-5 h-5 mr-2 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
@@ -540,12 +778,13 @@ export default function VehiclesPage() {
                     <th className="px-5 py-3 text-left">Loại xe</th>
                     <th className="px-5 py-3 text-left">VIN</th>
                     <th className="px-5 py-3 text-left">Sức chứa</th>
+                    <th className="px-5 py-3 text-left">Tài xế phụ trách</th>
                     <th className="px-5 py-3 text-left">ODO (km)</th>
                     <th className="px-5 py-3 text-left">Trạng thái</th>
                     <th className="px-5 py-3 text-right">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-gray-100">
                   {filtered.map((v) => (
                     <tr
                       key={v.id}
@@ -567,6 +806,40 @@ export default function VehiclesPage() {
                           <span className="text-gray-400">—</span>
                         )}
                       </td>
+                      <td className="px-5 py-3.5">
+                        {v.assignedDriverName ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                              <span>👨‍✈️</span>
+                              <span>{v.assignedDriverName}</span>
+                            </span>
+                            <button
+                              id={`vehicle-change-driver-${v.id}`}
+                              onClick={() => openAssignModal(v)}
+                              title="Đổi tài xế khác"
+                              className="rounded px-1.5 py-0.5 text-xs font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            >
+                              Đổi
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-block rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-500">
+                              Chưa gán
+                            </span>
+                            <button
+                              id={`vehicle-assign-btn-${v.id}`}
+                              onClick={() => openAssignModal(v)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-all shadow-2xs hover:shadow-xs active:scale-95"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              Gán tài xế
+                            </button>
+                          </div>
+                        )}
+                      </td>
                       <td className="px-5 py-3.5 font-mono text-gray-700">
                         {v.odometerKm != null ? (
                           v.odometerKm.toLocaleString("vi-VN")
@@ -581,19 +854,19 @@ export default function VehiclesPage() {
                           {STATUS_LABELS[v.status]}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
                           <button
                             id={`vehicle-edit-${v.id}`}
                             onClick={() => openEdit(v)}
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-blue-200 hover:text-blue-600 transition-colors"
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-blue-200 hover:text-blue-600 transition-colors shadow-sm"
                           >
                             Sửa
                           </button>
                           <button
                             id={`vehicle-delete-${v.id}`}
                             onClick={() => setDeleteTarget(v)}
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-red-500/50 hover:text-red-600 transition-colors"
+                            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors shadow-sm"
                           >
                             Xoá
                           </button>
@@ -629,6 +902,17 @@ export default function VehiclesPage() {
         />
       )}
 
+      {assignTarget && (
+        <AssignDriverModal
+          vehicle={assignTarget}
+          drivers={drivers}
+          onClose={() => setAssignTarget(null)}
+          onSubmit={handleAssignSubmit}
+          loading={assignLoading}
+          error={assignError}
+        />
+      )}
+
       {deleteTarget && (
         <ConfirmDeleteModal
           vehicle={deleteTarget}
@@ -641,11 +925,10 @@ export default function VehiclesPage() {
       {/* ── Toast ── */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border px-5 py-3 shadow-2xl text-sm font-medium transition-all animate-in slide-in-from-bottom-2 ${
-            toast.type === "success"
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border px-5 py-3 shadow-2xl text-sm font-medium transition-all animate-in slide-in-from-bottom-2 ${toast.type === "success"
               ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
               : "border-red-500/30 bg-red-500/10 text-red-600"
-          }`}
+            }`}
         >
           {toast.type === "success" ? (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

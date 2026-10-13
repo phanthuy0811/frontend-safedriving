@@ -8,7 +8,11 @@ import {
   updateAssignment,
   deleteAssignment,
 } from "@/services/assignment.service";
+import { getAllTrips } from "@/services/trip.service";
+import { getAllDrivers } from "@/services/driver.service";
 import { AssignmentResponse, AssignmentRequest } from "@/types/assignment";
+import { TripResponse, TripStatus } from "@/types/trip";
+import { DriverResponse } from "@/types/driver";
 import { ApiError } from "@/services/api.client";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -35,20 +39,65 @@ interface ModalProps {
   onSubmit: () => void;
   form: AssignmentRequest;
   setForm: (f: AssignmentRequest) => void;
+  trips: TripResponse[];
+  drivers: DriverResponse[];
+  assignments?: AssignmentResponse[];
   loading: boolean;
   error: string | null;
   isEdit: boolean;
 }
 
-function AssignmentModal({ title, onClose, onSubmit, form, setForm, loading, error, isEdit }: ModalProps) {
+function AssignmentModal({
+  title,
+  onClose,
+  onSubmit,
+  form,
+  setForm,
+  trips,
+  drivers,
+  assignments,
+  loading,
+  error,
+  isEdit,
+}: ModalProps) {
+  // 1. Chỉ lấy chuyến đi chưa phân công (PLANNED)
+  const availableTrips = trips.filter((t) => {
+    if (isEdit && t.id === form.tripId) return true;
+    return t.status === "PLANNED";
+  });
+
+  // 2. Chỉ lấy tài xế đang rảnh (hoạt động, chưa có phân công nào, không bận chuyến)
+  const availableDrivers = drivers.filter((d) => {
+    if (d.isActive === false) return false;
+    if (isEdit && d.id === form.driverId) return true;
+    const hasAssignment = assignments?.some((a) => a.driverId === d.id);
+    if (hasAssignment) return false;
+    const hasActiveTrip = trips.some(
+      (t) => t.driverId === d.id && (t.status === "IN_PROGRESS" || t.status === "ASSIGNED")
+    );
+    if (hasActiveTrip) return false;
+    return true;
+  });
+
+  const selectedTrip = trips.find((t) => t.id === form.tripId);
+  const selectedDriver = drivers.find((d) => d.id === form.driverId);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-transparent/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-2xl border border-gray-300 bg-white shadow-2xl">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 className="text-base font-bold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-white hover:text-gray-900 transition-colors">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 bg-gray-50/50">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">{title}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Chọn chuyến đi và tài xế phụ trách từ danh sách hệ thống
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -56,64 +105,170 @@ function AssignmentModal({ title, onClose, onSubmit, form, setForm, loading, err
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-6 py-5 space-y-4 max-h-[80vh] overflow-y-auto">
           {error && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-600">{error}</div>
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">
+              {error}
+            </div>
           )}
 
           {/* Info banner */}
-          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-xs text-amber-600">
-            💡 Khi phân công thành công, trạng thái chuyến đi sẽ tự động chuyển sang <strong>ASSIGNED</strong>.
+          <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-2.5 text-xs text-amber-800">
+            💡 Khi phân công thành công, trạng thái chuyến đi sẽ tự động chuyển sang <strong>ASSIGNED</strong> và liên kết với phương tiện của tài xế.
           </div>
 
-          {/* Trip ID */}
+          {/* Chọn Chuyến đi (Dropdown Menu) */}
           <div>
-            <label className="block mb-1.5 text-xs font-semibold text-gray-500">
-              ID Chuyến đi <span className="text-red-600">*</span>
+            <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+              🛣️ Chuyến đi cần phân công <span className="text-red-500">*</span>
             </label>
-            <input
-              id="assignment-trip-id"
-              type="text"
-              placeholder="UUID của chuyến đi cần phân công"
+            <select
+              id="assignment-trip-select"
               value={form.tripId}
               onChange={(e) => setForm({ ...form, tripId: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-colors font-mono"
-            />
+              className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all font-medium"
+            >
+              <option value="">
+                {availableTrips.length === 0
+                  ? "-- Không có chuyến đi nào chưa phân công --"
+                  : "-- Nhấn để chọn chuyến đi --"}
+              </option>
+              {availableTrips.map((t) => {
+                const routeTitle =
+                  t.routeName ||
+                  (t.startLocation && t.endLocation
+                    ? `${t.startLocation} ➔ ${t.endLocation}`
+                    : `Chuyến #${t.id.slice(0, 8)}`);
+                const timeStr = t.plannedStartTime
+                  ? ` (${formatDateTime(t.plannedStartTime)})`
+                  : "";
+                return (
+                  <option key={t.id} value={t.id}>
+                    {routeTitle}{timeStr}
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
-          {/* Driver ID */}
+          {/* Chi tiết chuyến đi được chọn */}
+          {selectedTrip && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3 text-xs space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Lộ trình:</span>
+                <span className="font-semibold text-gray-900">
+                  {selectedTrip.startLocation} ➔ {selectedTrip.endLocation}
+                </span>
+              </div>
+              {selectedTrip.routeName && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Tuyến đường:</span>
+                  <span className="font-medium text-amber-700">{selectedTrip.routeName}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Khởi hành dự kiến:</span>
+                <span className="font-medium text-gray-700">
+                  {formatDateTime(selectedTrip.plannedStartTime)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Trạng thái hiện tại:</span>
+                <span className="inline-block rounded-md border px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-700 border-amber-200">
+                  {selectedTrip.status}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Chọn Tài xế (Dropdown Menu) */}
           <div>
-            <label className="block mb-1.5 text-xs font-semibold text-gray-500">
-              ID Tài xế <span className="text-red-600">*</span>
+            <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+              👨‍✈️ Tài xế phụ trách <span className="text-red-500">*</span>
             </label>
-            <input
-              id="assignment-driver-id"
-              type="text"
-              placeholder="UUID tài xế được phân công"
+            <select
+              id="assignment-driver-select"
               value={form.driverId}
               onChange={(e) => setForm({ ...form, driverId: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-colors font-mono"
-            />
+              className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all font-medium"
+            >
+              <option value="">
+                {availableDrivers.length === 0
+                  ? "-- Không có tài xế nào đang rảnh --"
+                  : "-- Nhấn để chọn tài xế --"}
+              </option>
+              {availableDrivers.map((d) => {
+                const fullName =
+                  d.staff?.fullName ||
+                  `${d.staff?.lastName || ""} ${d.staff?.firstName || ""}`.trim() ||
+                  `Tài xế #${d.id.slice(0, 8)}`;
+                const phone = d.staff?.phone ? ` (${d.staff.phone})` : "";
+                const vehicleTag = d.vehicle
+                  ? ` — [Xe: ${d.vehicle.plateNumber}]`
+                  : " — [⚠️ Chưa có xe]";
+                return (
+                  <option key={d.id} value={d.id}>
+                    {fullName}{phone}{vehicleTag}
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
-          {/* Vehicle info note */}
-          <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-2.5 text-xs text-blue-600">
-            🚐 <strong>Phương tiện:</strong> Tự động nhận diện theo xe đã lưu trong hồ sơ tài xế (quản lý tại mục Đội xe). Không cần nhập phương tiện.
-          </div>
+          {/* Chi tiết tài xế được chọn */}
+          {selectedDriver && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3 text-xs space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Họ và tên:</span>
+                <span className="font-semibold text-gray-900">
+                  👨‍✈️ {selectedDriver.staff?.fullName || `${selectedDriver.staff?.lastName || ""} ${selectedDriver.staff?.firstName || ""}`.trim() || "Tài xế"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Số điện thoại:</span>
+                <span className="font-medium text-gray-700">
+                  {selectedDriver.staff?.phone || "Chưa cập nhật"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-gray-200/60">
+                <span className="text-gray-500">Phương tiện phụ trách:</span>
+                <span>
+                  {selectedDriver.vehicle ? (
+                    <span className="inline-flex items-center gap-1 font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 font-mono">
+                      🚐 {selectedDriver.vehicle.plateNumber}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                      Chưa có xe
+                    </span>
+                  )}
+                </span>
+              </div>
+
+              {!selectedDriver.vehicle && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-800 font-medium">
+                  ⚠️ Tài xế này chưa được gán phương tiện trong hồ sơ. Theo quy định, tài xế phải được gán xe tại trang Phương tiện trước khi phân công chuyến đi!
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
-          <button onClick={onClose} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+        <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4 bg-gray-50/50">
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+          >
             Huỷ
           </button>
           <button
             id="assignment-modal-submit"
             onClick={onSubmit}
-            disabled={loading}
-            className="rounded-lg bg-amber-600 text-white px-5 py-2 text-sm font-semibold text-gray-900 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            disabled={loading || !form.tripId || !form.driverId}
+            className="rounded-xl bg-amber-600 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all"
           >
-            {loading ? "Đang xử lý..." : isEdit ? "Cập nhật" : "Phân công"}
+            {loading ? "Đang xử lý..." : isEdit ? "Cập nhật phân công" : "Xác nhận phân công"}
           </button>
         </div>
       </div>
@@ -170,6 +325,8 @@ function ConfirmDeleteModal({
 export default function AssignmentsPage() {
   const { user } = useAuth();
   const [assignments, setAssignments] = useState<AssignmentResponse[]>([]);
+  const [trips, setTrips] = useState<TripResponse[]>([]);
+  const [drivers, setDrivers] = useState<DriverResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDriverId, setFilterDriverId] = useState("");
@@ -191,10 +348,41 @@ export default function AssignmentsPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const fetchAssignments = useCallback(async () => {
+  const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      setAssignments(await getAllAssignments());
+      const [assignmentsData, tripsData, driversData] = await Promise.all([
+        getAllAssignments(),
+        getAllTrips(),
+        getAllDrivers().catch(() => []),
+      ]);
+      const enrichedTrips = tripsData.map((t) => {
+        const assignment = assignmentsData.find((a) => a.tripId === t.id);
+        if (assignment) {
+          return {
+            ...t,
+            driverName: t.driverName || assignment.driverName,
+            vehiclePlateNumber: t.vehiclePlateNumber || assignment.vehiclePlate,
+            driverId: t.driverId || assignment.driverId,
+            vehicleId: t.vehicleId || assignment.vehicleId,
+            status: (t.status === "PLANNED" ? "ASSIGNED" : t.status) as TripStatus,
+          };
+        }
+        if (t.status === "ASSIGNED") {
+          return {
+            ...t,
+            driverName: undefined,
+            driverId: undefined,
+            vehicleId: undefined,
+            vehiclePlateNumber: undefined,
+            status: "PLANNED" as TripStatus,
+          };
+        }
+        return t;
+      });
+      setAssignments(assignmentsData);
+      setTrips(enrichedTrips);
+      setDrivers(driversData);
     } catch {
       showToast("Không thể tải danh sách phân công.", "error");
     } finally {
@@ -202,23 +390,25 @@ export default function AssignmentsPage() {
     }
   }, []);
 
-  useEffect(() => { fetchAssignments(); }, [fetchAssignments]);
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
 
   // ── Unique drivers for quick filter ──
   const uniqueDriverIds = Array.from(new Set(assignments.map((a) => a.driverId)));
 
   // ── Filter ──
   const filtered = assignments.filter((a) => {
-    const q = searchTerm.toLowerCase();
+    const q = searchTerm.toLowerCase().trim();
     const matchSearch = !q ||
-      a.tripId.toLowerCase().includes(q) ||
-      a.driverId.toLowerCase().includes(q) ||
-      a.accountId.toLowerCase().includes(q) ||
-      a.id.toLowerCase().includes(q) ||
-      (a.driverName && a.driverName.toLowerCase().includes(q)) ||
-      (a.vehiclePlate && a.vehiclePlate.toLowerCase().includes(q)) ||
-      (a.routeName && a.routeName.toLowerCase().includes(q)) ||
-      (a.routeCode && a.routeCode.toLowerCase().includes(q));
+      a.tripId?.toLowerCase().includes(q) ||
+      a.driverId?.toLowerCase().includes(q) ||
+      a.accountId?.toLowerCase().includes(q) ||
+      a.id?.toLowerCase().includes(q) ||
+      a.driverName?.toLowerCase().includes(q) ||
+      a.vehiclePlate?.toLowerCase().includes(q) ||
+      a.routeName?.toLowerCase().includes(q) ||
+      a.routeCode?.toLowerCase().includes(q);
     const matchDriver = !filterDriverId || a.driverId === filterDriverId;
     return matchSearch && matchDriver;
   });
@@ -236,7 +426,7 @@ export default function AssignmentsPage() {
   };
 
   const openEdit = (a: AssignmentResponse) => {
-    setForm({ tripId: a.tripId, driverId: a.driverId, accountId: a.accountId });
+    setForm({ tripId: a.tripId, driverId: a.driverId, accountId: a.accountId || user?.accountId || "" });
     setIsEdit(true);
     setEditingId(a.id);
     setModalError(null);
@@ -245,8 +435,8 @@ export default function AssignmentsPage() {
 
   const handleSubmit = async () => {
     const accountId = form.accountId.trim() || user?.accountId || "";
-    if (!form.tripId.trim()) { setModalError("ID chuyến đi không được để trống."); return; }
-    if (!form.driverId.trim()) { setModalError("ID tài xế không được để trống."); return; }
+    if (!form.tripId.trim()) { setModalError("Vui lòng chọn chuyến đi từ danh sách."); return; }
+    if (!form.driverId.trim()) { setModalError("Vui lòng chọn tài xế từ danh sách."); return; }
     if (!accountId) { setModalError("Không xác định được ID người phân công. Vui lòng đăng nhập lại."); return; }
 
     setModalLoading(true);
@@ -265,9 +455,9 @@ export default function AssignmentsPage() {
         showToast("Phân công tài xế thành công! Chuyến đi đã chuyển sang ASSIGNED.", "success");
       }
       setShowModal(false);
-      fetchAssignments();
+      fetchAllData();
     } catch (err) {
-      setModalError(err instanceof ApiError ? err.message : "Đã xảy ra lỗi.");
+      setModalError(err instanceof ApiError ? err.message : "Đã xảy ra lỗi khi phân công.");
     } finally {
       setModalLoading(false);
     }
@@ -280,7 +470,7 @@ export default function AssignmentsPage() {
       await deleteAssignment(deleteTarget.id);
       showToast("Đã huỷ phân công thành công!", "success");
       setDeleteTarget(null);
-      fetchAssignments();
+      fetchAllData();
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Huỷ phân công thất bại.", "error");
       setDeleteTarget(null);
@@ -300,14 +490,14 @@ export default function AssignmentsPage() {
               Quản lý Phân công
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Giao chuyến đi cho tài xế — mỗi phân công sẽ cập nhật trạng thái chuyến sang{" "}
-              <span className="text-blue-400 font-semibold">ASSIGNED</span>
+              Giao chuyến đi cho tài xế — mỗi phân công sẽ tự động cập nhật trạng thái chuyến sang{" "}
+              <span className="text-blue-600 font-semibold">ASSIGNED</span>
             </p>
           </div>
           <button
             id="assignment-add-btn"
             onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-amber-600 text-white px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-lg shadow-sm hover:bg-amber-700 transition-colors active:scale-95"
+            className="inline-flex items-center gap-2 rounded-xl bg-amber-600 text-white px-5 py-2.5 text-sm font-semibold shadow-sm hover:bg-amber-700 transition-colors active:scale-95"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -318,17 +508,17 @@ export default function AssignmentsPage() {
 
         {/* ── Stats ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm border-gray-200 p-5">
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
             <div className="text-xs font-semibold text-gray-500 mb-1">Tổng phân công</div>
             <div className="text-3xl font-extrabold font-mono text-amber-600">{assignments.length}</div>
           </div>
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm border-gray-200 p-5">
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
             <div className="text-xs font-semibold text-gray-500 mb-1">Số tài xế được phân công</div>
             <div className="text-3xl font-extrabold font-mono text-blue-600">{uniqueDriverIds.length}</div>
           </div>
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm border-gray-200 p-5">
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
             <div className="text-xs font-semibold text-gray-500 mb-1">Chuyến đã phân công</div>
-            <div className="text-3xl font-extrabold font-mono text-blue-400">
+            <div className="text-3xl font-extrabold font-mono text-blue-600">
               {new Set(assignments.map((a) => a.tripId)).size}
             </div>
           </div>
@@ -343,7 +533,7 @@ export default function AssignmentsPage() {
             <input
               id="assignment-search"
               type="text"
-              placeholder="Tìm theo ID chuyến, ID tài xế, ID tài khoản..."
+              placeholder="Tìm theo tên tuyến, tên tài xế, biển số xe, mã chuyến..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-colors"
@@ -353,19 +543,27 @@ export default function AssignmentsPage() {
             id="assignment-driver-filter"
             value={filterDriverId}
             onChange={(e) => setFilterDriverId(e.target.value)}
-            className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:outline-none transition-colors max-w-xs"
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:outline-none transition-colors max-w-xs font-medium"
           >
-            <option value="">Tất cả tài xế</option>
-            {uniqueDriverIds.map((id) => (
-              <option key={id} value={id}>
-                {id.slice(0, 8)}…
-              </option>
-            ))}
+            <option value="">Tất cả tài xế ({uniqueDriverIds.length})</option>
+            {uniqueDriverIds.map((id) => {
+              const driverObj = drivers.find((d) => d.id === id);
+              const driverName =
+                driverObj?.staff?.fullName ||
+                `${driverObj?.staff?.lastName || ""} ${driverObj?.staff?.firstName || ""}`.trim() ||
+                assignments.find((a) => a.driverId === id)?.driverName ||
+                `Tài xế #${id.slice(0, 8)}`;
+              return (
+                <option key={id} value={id}>
+                  👨‍✈️ {driverName}
+                </option>
+              );
+            })}
           </select>
         </div>
 
         {/* ── Table ── */}
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm border-gray-200 overflow-hidden">
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-20 text-gray-500 text-sm">
               <svg className="w-5 h-5 mr-2 animate-spin text-amber-600" fill="none" viewBox="0 0 24 24">
@@ -389,63 +587,86 @@ export default function AssignmentsPage() {
                     <th className="px-5 py-3 text-left">Mã Phân công</th>
                     <th className="px-5 py-3 text-left">Chuyến đi / Tuyến</th>
                     <th className="px-5 py-3 text-left">Tài xế</th>
-                    <th className="px-5 py-3 text-left">Phương tiện (Biển số)</th>
+                    <th className="px-5 py-3 text-left">Phương tiện</th>
                     <th className="px-5 py-3 text-left">Thời điểm</th>
                     <th className="px-5 py-3 text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filtered.map((a) => (
-                    <tr key={a.id} className="group hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <span className="font-mono text-[11px] text-gray-400">{a.id.slice(0, 8)}…</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="font-medium text-gray-900">
-                          {a.routeCode ? `${a.routeCode} - ${a.routeName || ""}` : `Chuyến ${a.tripId.slice(0, 8)}…`}
-                        </div>
-                        <div className="text-[11px] font-mono text-gray-400">{a.tripId.slice(0, 12)}…</div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="font-semibold text-amber-600">
-                          {a.driverName || "Tài xế"}
-                        </div>
-                        <div className="text-[11px] font-mono text-gray-400">{a.driverId.slice(0, 12)}…</div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        {a.vehiclePlate ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 font-mono">
-                            🚐 {a.vehiclePlate}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-red-50 text-red-600 border border-red-200">
-                            Chưa có xe
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-gray-700">
-                        {formatDateTime(a.assignmentAt)}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            id={`assignment-edit-${a.id}`}
-                            onClick={() => openEdit(a)}
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-amber-200 hover:text-amber-600 transition-colors"
-                          >
-                            Sửa
-                          </button>
-                          <button
-                            id={`assignment-delete-${a.id}`}
-                            onClick={() => setDeleteTarget(a)}
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-red-500/50 hover:text-red-600 transition-colors"
-                          >
-                            Xoá
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {filtered.map((a) => {
+                    const tripObj = trips.find((t) => t.id === a.tripId);
+                    const driverObj = drivers.find((d) => d.id === a.driverId);
+                    const driverDisplayName =
+                      a.driverName ||
+                      driverObj?.staff?.fullName ||
+                      `${driverObj?.staff?.lastName || ""} ${driverObj?.staff?.firstName || ""}`.trim() ||
+                      "Tài xế";
+                    const vehiclePlateDisplay =
+                      a.vehiclePlate || driverObj?.vehicle?.plateNumber;
+
+                    return (
+                      <tr key={a.id} className="group hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-3.5">
+                          <span className="font-mono text-xs text-gray-500 font-semibold">{a.id.slice(0, 8)}…</span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="font-semibold text-gray-900">
+                            {a.routeCode
+                              ? `${a.routeCode} - ${a.routeName || ""}`
+                              : tripObj?.routeName || (tripObj ? `${tripObj.startLocation} ➔ ${tripObj.endLocation}` : `Chuyến ${a.tripId.slice(0, 8)}…`)}
+                          </div>
+                          {tripObj && (
+                            <div className="text-xs text-gray-500">
+                              {tripObj.startLocation} ➔ {tripObj.endLocation}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="font-semibold text-amber-700 flex items-center gap-1.5">
+                            <span>👨‍✈️</span>
+                            <span>{driverDisplayName}</span>
+                          </div>
+                          {driverObj?.staff?.phone && (
+                            <div className="text-xs text-gray-500">
+                              SĐT: {driverObj.staff.phone}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {vehiclePlateDisplay ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 font-mono">
+                              🚐 {vehiclePlateDisplay}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-red-50 text-red-600 border border-red-200">
+                              Chưa có xe
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-gray-700">
+                          {formatDateTime(a.assignmentAt)}
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              id={`assignment-edit-${a.id}`}
+                              onClick={() => openEdit(a)}
+                              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-amber-300 hover:text-amber-600 transition-colors shadow-sm"
+                            >
+                              Sửa
+                            </button>
+                            <button
+                              id={`assignment-delete-${a.id}`}
+                              onClick={() => setDeleteTarget(a)}
+                              className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors shadow-sm"
+                            >
+                              Xoá
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -466,6 +687,9 @@ export default function AssignmentsPage() {
           onSubmit={handleSubmit}
           form={form}
           setForm={setForm}
+          trips={trips}
+          drivers={drivers}
+          assignments={assignments}
           loading={modalLoading}
           error={modalError}
           isEdit={isEdit}

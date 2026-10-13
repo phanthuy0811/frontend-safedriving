@@ -279,7 +279,7 @@ export default function LiveFleetMap({
             white-space: nowrap;
           ">
             <span>🚗 ${vehicle.plateNumber}</span>
-            <span style="color:#64748b;font-size:9px;font-weight:normal;">(Xe mẫu)</span>
+            ${vehicle.id?.startsWith("f8a12345") ? `<span style="color:#64748b;font-size:9px;font-weight:normal;">(Mô phỏng)</span>` : ""}
           </div>`;
 
       circleDot.bindTooltip(tooltipContent, {

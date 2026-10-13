@@ -3,7 +3,7 @@ export interface AssignmentResponse {
   id: string;
   tripId: string;
   driverId: string;
-  accountId: string;
+  accountId?: string;
   assignmentAt: string; // LocalDateTime → ISO string
   driverName?: string;
   vehiclePlate?: string;

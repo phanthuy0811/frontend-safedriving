@@ -29,9 +29,13 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="h-full flex overflow-hidden bg-gray-50 text-gray-900 selection:bg-blue-500 selection:text-white">
+      <body
+        suppressHydrationWarning
+        className="h-full flex overflow-hidden bg-gray-50 text-gray-900 selection:bg-blue-500 selection:text-white"
+      >
         <Providers>
           <Sidebar />
           <div className="flex-1 flex flex-col h-full overflow-hidden">
