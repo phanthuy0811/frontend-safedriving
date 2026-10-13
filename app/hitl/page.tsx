@@ -118,11 +118,10 @@ export default function HitlPage() {
           <button
             type="button"
             onClick={() => setActiveTab("PENDING")}
-            className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
-              activeTab === "PENDING"
+            className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${activeTab === "PENDING"
                 ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20"
                 : "text-slate-400 hover:text-white hover:bg-slate-900/60"
-            }`}
+              }`}
           >
             <span>Hàng đợi chờ duyệt (PENDING)</span>
             {pendingHitlCount > 0 && (
@@ -135,11 +134,10 @@ export default function HitlPage() {
           <button
             type="button"
             onClick={() => setActiveTab("APPROVED")}
-            className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
-              activeTab === "APPROVED"
+            className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${activeTab === "APPROVED"
                 ? "bg-slate-800 text-emerald-400 border border-emerald-500/30"
                 : "text-slate-400 hover:text-white hover:bg-slate-900/60"
-            }`}
+              }`}
           >
             <span>Đã phê duyệt (APPROVED)</span>
           </button>
@@ -147,11 +145,10 @@ export default function HitlPage() {
           <button
             type="button"
             onClick={() => setActiveTab("REJECTED")}
-            className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
-              activeTab === "REJECTED"
+            className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${activeTab === "REJECTED"
                 ? "bg-slate-800 text-slate-200 border border-slate-700"
                 : "text-slate-400 hover:text-white hover:bg-slate-900/60"
-            }`}
+              }`}
           >
             <span>Đã bác bỏ (REJECTED)</span>
           </button>
@@ -248,10 +245,10 @@ export default function HitlPage() {
                         <td className="px-4 py-3.5 whitespace-nowrap text-slate-300 font-mono">
                           {alert?.timestamp
                             ? new Date(alert.timestamp).toLocaleTimeString("vi-VN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                              })
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                            })
                             : new Date(c.created_at).toLocaleTimeString("vi-VN")}
                         </td>
                         <td className="px-4 py-3.5 whitespace-nowrap font-bold font-mono text-cyan-400">
@@ -267,13 +264,12 @@ export default function HitlPage() {
                         </td>
                         <td className="px-4 py-3.5 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                              alert?.severity === "CRITICAL"
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${alert?.severity === "CRITICAL"
                                 ? "bg-red-500/20 text-red-300 border border-red-500/30"
                                 : alert?.severity === "HIGH"
-                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                            }`}
+                                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                  : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                              }`}
                           >
                             {alert?.severity || "MEDIUM"}
                           </span>

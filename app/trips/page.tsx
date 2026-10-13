@@ -6,25 +6,31 @@ import {
   createTrip,
   updateTrip,
   deleteTrip,
+  startTrip,
+  endTrip,
+  autoDispatchTrip,
+  getTripGpsTracks,
 } from "@/services/trip.service";
-import { TripResponse, TripRequest, TripStatus } from "@/types/trip";
+import { getAllVehicles } from "@/services/vehicle.service";
+import { TripResponse, TripRequest, TripStatus, TripGpsTrackResponse } from "@/types/trip";
+import { VehicleResponse } from "@/types/vehicle";
 import { ApiError } from "@/services/api.client";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<TripStatus, string> = {
-  PLANNED: "Đã lên kế hoạch",
+  PLANNED: "Lên kế hoạch",
   ASSIGNED: "Đã phân công",
-  IN_PROGRESS: "Đang thực hiện",
+  IN_PROGRESS: "Đang di chuyển",
   COMPLETED: "Hoàn thành",
   CANCELLED: "Đã huỷ",
 };
 
 const STATUS_COLORS: Record<TripStatus, string> = {
-  PLANNED: "bg-slate-500/15 text-gray-700 border-slate-500/30",
+  PLANNED: "bg-gray-100 text-gray-700 border-gray-300",
   ASSIGNED: "bg-blue-50 text-blue-700 border-blue-200",
-  IN_PROGRESS: "bg-cyan-500/15 text-blue-600 border-cyan-500/30",
-  COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  IN_PROGRESS: "bg-emerald-50 text-emerald-700 border-emerald-300 animate-pulse",
+  COMPLETED: "bg-purple-50 text-purple-700 border-purple-200",
   CANCELLED: "bg-red-50 text-red-700 border-red-200",
 };
 
@@ -36,7 +42,6 @@ const ALL_STATUSES: TripStatus[] = [
   "CANCELLED",
 ];
 
-// Convert "2024-01-15T08:00:00" → "15/01/2024 08:00"
 function formatDateTime(iso?: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -49,13 +54,11 @@ function formatDateTime(iso?: string): string {
   });
 }
 
-// For <input type="datetime-local"> value
 function toDateTimeLocal(iso?: string): string {
   if (!iso) return "";
-  return iso.slice(0, 16); // "2024-01-15T08:00"
+  return iso.slice(0, 16);
 }
 
-// For sending to BE: "2024-01-15T08:00" → "2024-01-15T08:00:00"
 function toLocalDateTime(dtLocal: string): string {
   return dtLocal.length === 16 ? `${dtLocal}:00` : dtLocal;
 }
@@ -64,13 +67,18 @@ const now = new Date();
 const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
 
 const EMPTY_FORM: TripRequest = {
-  routeId: "",
+  startLocation: "",
+  endLocation: "",
+  vehicleId: "",
+  driverId: "",
   plannedStartTime: toLocalDateTime(now.toISOString().slice(0, 16)),
   plannedEndTime: toLocalDateTime(inOneHour.toISOString().slice(0, 16)),
   status: "PLANNED",
+  distanceKm: 0,
+  note: "",
 };
 
-// ─── Modal ───────────────────────────────────────────────────────────────────
+// ─── Trip Modal ───────────────────────────────────────────────────────────────
 
 interface ModalProps {
   title: string;
@@ -78,6 +86,7 @@ interface ModalProps {
   onSubmit: () => void;
   form: TripRequest;
   setForm: (f: TripRequest) => void;
+  vehicles: VehicleResponse[];
   loading: boolean;
   error: string | null;
   isEdit: boolean;
@@ -89,20 +98,24 @@ function TripModal({
   onSubmit,
   form,
   setForm,
+  vehicles,
   loading,
   error,
   isEdit,
 }: ModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-transparent/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl border border-gray-300 bg-white shadow-2xl">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 className="text-base font-bold text-gray-900">{title}</h2>
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 bg-gray-50/50">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">{title}</h2>
+            <p className="text-xs text-gray-500">Chuyến đi theo yêu cầu khách đặt, đo quãng đường bằng GPS</p>
+          </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-500 hover:bg-white hover:text-gray-900 transition-colors"
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -111,79 +124,108 @@ function TripModal({
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-6 py-5 space-y-4 max-h-[75vh] overflow-y-auto">
           {error && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-600">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">
               {error}
             </div>
           )}
 
-          {/* Route ID */}
+          {/* Start Location */}
           <div>
-            <label className="block mb-1.5 text-xs font-semibold text-gray-500">
-              ID Tuyến đường <span className="text-red-600">*</span>
+            <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+              📍 Điểm đón / Xuất phát (Điểm A) <span className="text-red-500">*</span>
             </label>
             <input
-              id="trip-route-id"
               type="text"
-              placeholder="VD: ROUTE-001"
-              value={form.routeId}
-              onChange={(e) => setForm({ ...form, routeId: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-colors"
+              placeholder="VD: Sân bay Nội Bài, Hà Nội"
+              value={form.startLocation}
+              onChange={(e) => setForm({ ...form, startLocation: e.target.value })}
+              className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
             />
           </div>
 
-          {/* Planned Start Time */}
+          {/* End Location */}
           <div>
-            <label className="block mb-1.5 text-xs font-semibold text-gray-500">
-              Thời gian xuất phát (dự kiến) <span className="text-red-600">*</span>
+            <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+              🎯 Điểm đến / Trả khách (Điểm B) <span className="text-red-500">*</span>
             </label>
             <input
-              id="trip-planned-start"
-              type="datetime-local"
-              value={toDateTimeLocal(form.plannedStartTime)}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  plannedStartTime: toLocalDateTime(e.target.value),
-                })
-              }
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-colors "
+              type="text"
+              placeholder="VD: Khu đô thị Vinhomes Ocean Park, Gia Lâm"
+              value={form.endLocation}
+              onChange={(e) => setForm({ ...form, endLocation: e.target.value })}
+              className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
             />
           </div>
 
-          {/* Planned End Time */}
+          {/* Vehicle Select */}
           <div>
-            <label className="block mb-1.5 text-xs font-semibold text-gray-500">
-              Thời gian đến (dự kiến) <span className="text-red-600">*</span>
+            <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+              🚗 Phương tiện thực hiện
             </label>
-            <input
-              id="trip-planned-end"
-              type="datetime-local"
-              value={toDateTimeLocal(form.plannedEndTime)}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  plannedEndTime: toLocalDateTime(e.target.value),
-                })
-              }
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-colors "
-            />
+            <select
+              value={form.vehicleId || ""}
+              onChange={(e) => setForm({ ...form, vehicleId: e.target.value })}
+              className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+            >
+              <option value="">-- Chưa gán xe (gán sau) --</option>
+              {vehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.plateNumber} ({v.vehicleTypeName || "Xe"} - {v.status === "AVAILABLE" ? "Sẵn sàng" : "Đang chạy"})
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Status (chỉ hiện khi edit) */}
+          {/* Times Grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+                Xuất phát (dự kiến)
+              </label>
+              <input
+                type="datetime-local"
+                value={toDateTimeLocal(form.plannedStartTime)}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    plannedStartTime: toLocalDateTime(e.target.value),
+                  })
+                }
+                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+                Đến nơi (dự kiến)
+              </label>
+              <input
+                type="datetime-local"
+                value={toDateTimeLocal(form.plannedEndTime)}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    plannedEndTime: toLocalDateTime(e.target.value),
+                  })
+                }
+                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Status (when edit) */}
           {isEdit && (
             <div>
-              <label className="block mb-1.5 text-xs font-semibold text-gray-500">
-                Trạng thái
+              <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+                Trạng thái chuyến đi
               </label>
               <select
-                id="trip-status"
                 value={form.status ?? "PLANNED"}
                 onChange={(e) =>
                   setForm({ ...form, status: e.target.value as TripStatus })
                 }
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-colors"
+                className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
               >
                 {ALL_STATUSES.map((s) => (
                   <option key={s} value={s}>
@@ -193,23 +235,36 @@ function TripModal({
               </select>
             </div>
           )}
+
+          {/* Note */}
+          <div>
+            <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+              Ghi chú
+            </label>
+            <input
+              type="text"
+              placeholder="VD: Đón khách VIP, mang theo hành lý"
+              value={form.note || ""}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+              className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+            />
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4 bg-gray-50/50">
           <button
             onClick={onClose}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
           >
             Huỷ
           </button>
           <button
-            id="trip-modal-submit"
             onClick={onSubmit}
             disabled={loading}
-            className="rounded-lg bg-blue-600 text-white px-5 py-2 text-sm font-semibold text-gray-900 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm disabled:opacity-50 transition-colors"
           >
-            {loading ? "Đang xử lý..." : isEdit ? "Cập nhật" : "Lên kế hoạch"}
+            {loading ? "Đang lưu..." : isEdit ? "Lưu thay đổi" : "Tạo chuyến đi"}
           </button>
         </div>
       </div>
@@ -217,50 +272,70 @@ function TripModal({
   );
 }
 
-// ─── Confirm Delete ───────────────────────────────────────────────────────────
+// ─── GPS Tracks Modal (Vẽ vệt đường) ───────────────────────────────────────────
 
-function ConfirmDeleteModal({
-  trip,
-  onClose,
-  onConfirm,
-  loading,
-}: {
+interface TracksModalProps {
   trip: TripResponse;
+  tracks: TripGpsTrackResponse[];
   onClose: () => void;
-  onConfirm: () => void;
-  loading: boolean;
-}) {
+}
+
+function TracksModal({ trip, tracks, onClose }: TracksModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-transparent/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-sm rounded-2xl border border-gray-300 bg-white shadow-2xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/15 border border-red-500/30">
-            <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </span>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 bg-gray-50/50">
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Huỷ chuyến đi?</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Dữ liệu sẽ bị ẩn (soft delete)</p>
+            <h3 className="text-base font-bold text-gray-900">
+              Lộ trình tọa độ GPS (Vệt đường di chuyển)
+            </h3>
+            <p className="text-xs text-gray-500">
+              Chuyến: <strong className="text-gray-800">{trip.startLocation || "Điểm đi"}</strong> ➔ <strong className="text-gray-800">{trip.endLocation || "Điểm đến"}</strong> ({tracks.length} điểm GPS)
+            </p>
           </div>
-        </div>
-        <p className="text-sm text-gray-700 mb-6">
-          Xoá chuyến{" "}
-          <span className="font-mono font-bold text-gray-900">{trip.routeId}</span>{" "}
-          lúc <span className="text-blue-600">{formatDateTime(trip.plannedStartTime)}</span>?
-        </p>
-        <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors">
-            Huỷ
-          </button>
           <button
-            id="trip-delete-confirm"
-            onClick={onConfirm}
-            disabled={loading}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-red-500 disabled:opacity-50 transition-colors"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
           >
-            {loading ? "Đang xoá..." : "Xoá"}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 max-h-[60vh] overflow-y-auto">
+          {tracks.length === 0 ? (
+            <div className="py-12 text-center text-gray-400 text-sm">
+              Chưa có dữ liệu GPS nào được ghi nhận cho chuyến đi này.
+              <p className="text-xs text-gray-500 mt-1">Khi xe di chuyển và app Android phát GPS, hệ thống sẽ tự động vẽ vệt đường tại đây.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-xs text-emerald-800 flex items-center justify-between">
+                <span>Tổng quãng đường đo theo GPS: <strong>{trip.distanceKm?.toFixed(2) || 0} km</strong></span>
+                <span>Tổng số tọa độ: <strong>{tracks.length} điểm</strong></span>
+              </div>
+              <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100 text-xs font-mono">
+                {tracks.map((t, idx) => (
+                  <div key={t.id || idx} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
+                    <span className="text-gray-500">#{idx + 1}</span>
+                    <span className="text-blue-600 font-semibold">{t.latitude.toFixed(6)}, {t.longitude.toFixed(6)}</span>
+                    <span className="text-gray-600">{t.speedKmh ? `${t.speedKmh.toFixed(1)} km/h` : "0.0 km/h"}</span>
+                    <span className="text-gray-400 text-[11px]">{formatDateTime(t.recordedAt)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-gray-200 px-6 py-3.5 bg-gray-50/50 flex justify-end">
+          <button
+            onClick={onClose}
+            className="rounded-xl bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-800 transition-colors"
+          >
+            Đóng
           </button>
         </div>
       </div>
@@ -268,288 +343,397 @@ function ConfirmDeleteModal({
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Main Trips Page ──────────────────────────────────────────────────────────
 
 export default function TripsPage() {
   const [trips, setTrips] = useState<TripResponse[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<TripStatus | "ALL">("ALL");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const [showModal, setShowModal] = useState(false);
+  // Filters
+  const [selectedStatus, setSelectedStatus] = useState<TripStatus | "ALL">("ALL");
+
+  // Modals
+  const [modalOpen, setModalOpen] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<TripRequest>(EMPTY_FORM);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
-  const [deleteTarget, setDeleteTarget] = useState<TripResponse | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  // Tracks Modal
+  const [trackModalTrip, setTrackModalTrip] = useState<TripResponse | null>(null);
+  const [trackPoints, setTrackPoints] = useState<TripGpsTrackResponse[]>([]);
 
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
-
-  const showToast = (msg: string, type: "success" | "error") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const fetchTrips = useCallback(async () => {
+  // Load Trips
+  const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      setTrips(await getAllTrips());
-    } catch {
-      showToast("Không thể tải danh sách chuyến đi.", "error");
+      const [tripsData, vehiclesData] = await Promise.all([
+        getAllTrips(selectedStatus === "ALL" ? undefined : selectedStatus),
+        getAllVehicles(),
+      ]);
+      setTrips(tripsData);
+      setVehicles(vehiclesData);
+    } catch (err) {
+      const e = err as ApiError;
+      setError(e.message || "Không thể tải danh sách chuyến đi");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedStatus]);
 
-  useEffect(() => { fetchTrips(); }, [fetchTrips]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  // ── Stats ──
-  const stats = ALL_STATUSES.map((s) => ({
-    status: s,
-    count: trips.filter((t) => t.status === s).length,
-  }));
-
-  // ── Filter ──
-  const filtered = trips.filter((t) => {
-    const matchStatus = filterStatus === "ALL" || t.status === filterStatus;
-    const q = searchTerm.toLowerCase();
-    const matchSearch =
-      !q ||
-      t.routeId.toLowerCase().includes(q) ||
-      t.id.toLowerCase().includes(q);
-    return matchStatus && matchSearch;
-  });
-
-  const openCreate = () => {
-    const n = new Date();
-    const h = new Date(n.getTime() + 60 * 60 * 1000);
-    setForm({
-      routeId: "",
-      plannedStartTime: toLocalDateTime(n.toISOString().slice(0, 16)),
-      plannedEndTime: toLocalDateTime(h.toISOString().slice(0, 16)),
-      status: "PLANNED",
-    });
-    setIsEdit(false);
-    setEditingId(null);
-    setModalError(null);
-    setShowModal(true);
-  };
-
-  const openEdit = (t: TripResponse) => {
-    setForm({
-      routeId: t.routeId,
-      plannedStartTime: t.plannedStartTime,
-      plannedEndTime: t.plannedEndTime,
-      status: t.status,
-    });
-    setIsEdit(true);
-    setEditingId(t.id);
-    setModalError(null);
-    setShowModal(true);
-  };
-
+  // Handle Create / Edit Submit
   const handleSubmit = async () => {
-    if (!form.routeId.trim()) { setModalError("ID tuyến đường không được để trống."); return; }
-    if (!form.plannedStartTime) { setModalError("Vui lòng chọn thời gian xuất phát."); return; }
-    if (!form.plannedEndTime) { setModalError("Vui lòng chọn thời gian đến."); return; }
-    if (new Date(form.plannedEndTime) <= new Date(form.plannedStartTime)) {
-      setModalError("Thời gian đến phải sau thời gian xuất phát.");
+    if (!form.startLocation?.trim()) {
+      setModalError("Vui lòng nhập điểm đón / xuất phát");
+      return;
+    }
+    if (!form.endLocation?.trim()) {
+      setModalError("Vui lòng nhập điểm đến / trả khách");
       return;
     }
 
     setModalLoading(true);
     setModalError(null);
     try {
-      if (isEdit && editingId) {
-        await updateTrip(editingId, form);
-        showToast("Cập nhật chuyến đi thành công!", "success");
+      if (isEdit && editId) {
+        await updateTrip(editId, form);
       } else {
         await createTrip(form);
-        showToast("Lên kế hoạch chuyến đi thành công!", "success");
       }
-      setShowModal(false);
-      fetchTrips();
+      setModalOpen(false);
+      loadData();
     } catch (err) {
-      setModalError(err instanceof ApiError ? err.message : "Đã xảy ra lỗi.");
+      const e = err as ApiError;
+      setModalError(e.message || "Lỗi lưu chuyến đi");
     } finally {
       setModalLoading(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleteLoading(true);
+  // Open Create Modal
+  const openCreateModal = () => {
+    setIsEdit(false);
+    setEditId(null);
+    setForm(EMPTY_FORM);
+    setModalError(null);
+    setModalOpen(true);
+  };
+
+  // Open Edit Modal
+  const openEditModal = (t: TripResponse) => {
+    setIsEdit(true);
+    setEditId(t.id);
+    setForm({
+      startLocation: t.startLocation || "",
+      endLocation: t.endLocation || "",
+      vehicleId: t.vehicleId || "",
+      driverId: t.driverId || "",
+      plannedStartTime: t.plannedStartTime ? toLocalDateTime(t.plannedStartTime) : "",
+      plannedEndTime: t.plannedEndTime ? toLocalDateTime(t.plannedEndTime) : "",
+      status: t.status,
+      distanceKm: t.distanceKm || 0,
+      note: t.note || "",
+    });
+    setModalError(null);
+    setModalOpen(true);
+  };
+
+  // Start Trip
+  const handleStartTrip = async (id: string) => {
     try {
-      await deleteTrip(deleteTarget.id);
-      showToast("Đã xoá chuyến đi thành công!", "success");
-      setDeleteTarget(null);
-      fetchTrips();
+      await startTrip(id);
+      loadData();
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Xoá thất bại.", "error");
-      setDeleteTarget(null);
-    } finally {
-      setDeleteLoading(false);
+      alert("Không thể bắt đầu chuyến: " + (err as ApiError).message);
+    }
+  };
+
+  // End Trip
+  const handleEndTrip = async (id: string) => {
+    if (!confirm("Xác nhận hoàn thành chuyến đi này? Xe sẽ được giải phóng về trạng thái Sẵn sàng.")) return;
+    try {
+      await endTrip(id);
+      loadData();
+    } catch (err) {
+      alert("Không thể kết thúc chuyến: " + (err as ApiError).message);
+    }
+  };
+
+  // Delete Trip
+  const handleDelete = async (id: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa chuyến đi này không?")) return;
+    try {
+      await deleteTrip(id);
+      loadData();
+    } catch (err) {
+      alert("Lỗi xóa chuyến đi: " + (err as ApiError).message);
+    }
+  };
+
+  // Auto-dispatch Trip
+  const handleAutoDispatch = async (id: string) => {
+    try {
+      await autoDispatchTrip(id);
+      loadData();
+    } catch (err) {
+      alert("Lỗi nổ đơn tự động: " + (err as ApiError).message);
+    }
+  };
+
+  // View GPS Tracks
+  const handleViewTracks = async (t: TripResponse) => {
+    try {
+      const tracks = await getTripGpsTracks(t.id);
+      setTrackPoints(tracks);
+      setTrackModalTrip(t);
+    } catch (err) {
+      alert("Lỗi tải tọa độ: " + (err as ApiError).message);
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-transparent text-gray-900">
-
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* ── Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div className="min-h-screen bg-gray-50 text-gray-900 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-6">
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
-              Quản lý Chuyến đi
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-200">
+              <span className="h-2 w-2 rounded-full bg-blue-600"></span>
+              Hành trình & Quản lý Chuyến đi Thực tế
+            </span>
+            <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+              Quản lý Chuyến đi & Vệt đường GPS
             </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Lập kế hoạch và theo dõi trạng thái các chuyến đi của đội xe
+            <p className="mt-1 text-xs sm:text-sm text-gray-500">
+              Quản lý hành trình di chuyển thực tế theo đơn khách đặt (Điểm A ➔ Điểm B), đo km theo GPS và theo dõi an toàn lái xe.
             </p>
           </div>
-          <button
-            id="trip-add-btn"
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-lg shadow-sm hover:bg-blue-700 transition-colors active:scale-95"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Lên kế hoạch chuyến
-          </button>
-        </div>
 
-        {/* ── Status Stats ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
-          {stats.map(({ status, count }) => (
+          <div className="flex items-center gap-3">
             <button
-              key={status}
-              id={`trip-filter-${status.toLowerCase()}`}
-              onClick={() => setFilterStatus(filterStatus === status ? "ALL" : status)}
-              className={`rounded-2xl border p-4 text-left transition-all hover:scale-[1.02] ${
-                filterStatus === status
-                  ? "border-blue-200 bg-blue-50 ring-1 ring-blue-500/20"
-                  : "border-gray-200 bg-white shadow-sm border-gray-200"
-              }`}
+              onClick={loadData}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 shadow-sm transition-colors"
             >
-              <div className="text-2xl font-extrabold font-mono text-gray-900">{count}</div>
-              <div className="mt-1">
-                <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold ${STATUS_COLORS[status]}`}>
-                  {STATUS_LABELS[status]}
-                </span>
-              </div>
+              🔄 Tải lại
             </button>
-          ))}
-        </div>
-
-        {/* ── Search & Filter ── */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <div className="relative flex-1">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              id="trip-search"
-              type="text"
-              placeholder="Tìm theo tuyến đường hoặc ID chuyến..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-colors"
-            />
+            <button
+              onClick={openCreateModal}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 shadow-sm transition-colors"
+            >
+              + Tạo Chuyến Đi Mới
+            </button>
           </div>
-          <select
-            id="trip-status-filter"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as TripStatus | "ALL")}
-            className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none transition-colors"
-          >
-            <option value="ALL">Tất cả trạng thái</option>
-            {ALL_STATUSES.map((s) => (
-              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-            ))}
-          </select>
         </div>
 
-        {/* ── Table ── */}
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm border-gray-200 overflow-hidden">
+        {/* Filter Pills */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setSelectedStatus("ALL")}
+            className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
+              selectedStatus === "ALL"
+                ? "bg-gray-900 text-white shadow-sm"
+                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
+            }`}
+          >
+            Tất cả ({trips.length})
+          </button>
+          {ALL_STATUSES.map((st) => {
+            const count = trips.filter((t) => t.status === st).length;
+            return (
+              <button
+                key={st}
+                onClick={() => setSelectedStatus(st)}
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                  selectedStatus === st
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
+                }`}
+              >
+                {STATUS_LABELS[st]} ({count})
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Table Card */}
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-20 text-gray-500 text-sm">
-              <svg className="w-5 h-5 mr-2 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-              </svg>
-              Đang tải dữ liệu...
+            <div className="py-20 text-center text-gray-400 text-sm">
+              Đang tải danh sách chuyến đi...
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-20 text-center text-gray-500 text-sm">
-              <svg className="w-10 h-10 mx-auto mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-              Không có chuyến đi nào
+          ) : error ? (
+            <div className="py-16 text-center text-red-500 text-sm">
+              {error}
+            </div>
+          ) : trips.length === 0 ? (
+            <div className="py-20 text-center text-gray-400 text-sm">
+              Không có chuyến đi nào phù hợp.
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                    <th className="px-5 py-3 text-left">Tuyến đường</th>
-                    <th className="px-5 py-3 text-left">Giờ xuất phát (DK)</th>
-                    <th className="px-5 py-3 text-left">Giờ đến (DK)</th>
-                    <th className="px-5 py-3 text-left">Thực tế bắt đầu</th>
-                    <th className="px-5 py-3 text-left">Thực tế kết thúc</th>
-                    <th className="px-5 py-3 text-left">Trạng thái</th>
-                    <th className="px-5 py-3 text-right">Thao tác</th>
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3.5">Hành trình (A ➔ B)</th>
+                    <th className="px-5 py-3.5">Phương tiện & Tài xế</th>
+                    <th className="px-5 py-3.5">Quãng đường</th>
+                    <th className="px-5 py-3.5">Thời gian</th>
+                    <th className="px-5 py-3.5">An toàn & AI</th>
+                    <th className="px-5 py-3.5">Trạng thái</th>
+                    <th className="px-5 py-3.5 text-right">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {filtered.map((t) => (
-                    <tr key={t.id} className="group hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <div className="font-mono font-semibold text-blue-600">{t.routeId}</div>
-                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">{t.id.slice(0, 8)}…</div>
-                      </td>
-                      <td className="px-5 py-3.5 text-gray-700 text-xs">{formatDateTime(t.plannedStartTime)}</td>
-                      <td className="px-5 py-3.5 text-gray-700 text-xs">{formatDateTime(t.plannedEndTime)}</td>
-                      <td className="px-5 py-3.5 text-xs">
-                        {t.startTime ? (
-                          <span className="text-emerald-600">{formatDateTime(t.startTime)}</span>
-                        ) : (
-                          <span className="text-gray-400">Chưa bắt đầu</span>
+                <tbody className="divide-y divide-gray-100">
+                  {trips.map((t) => (
+                    <tr key={t.id} className="hover:bg-gray-50/80 transition-colors">
+                      {/* Route A -> B */}
+                      <td className="px-5 py-4">
+                        <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                          <span>📍</span>
+                          <span>{t.startLocation || "Điểm đón"}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 flex items-center gap-1.5 mt-1">
+                          <span>➔ 🎯</span>
+                          <span>{t.endLocation || "Điểm đến"}</span>
+                        </div>
+                        {t.note && (
+                          <div className="text-[11px] text-gray-400 mt-1 italic">
+                            Ghi chú: {t.note}
+                          </div>
                         )}
                       </td>
-                      <td className="px-5 py-3.5 text-xs">
-                        {t.endTime ? (
-                          <span className="text-emerald-600">{formatDateTime(t.endTime)}</span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
+
+                      {/* Vehicle & Driver */}
+                      <td className="px-5 py-4">
+                        <div className="font-medium text-gray-900">
+                          {t.vehiclePlateNumber ? (
+                            <span className="font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200">
+                              🚗 {t.vehiclePlateNumber}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs italic">Chưa gán xe</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          {t.driverName ? `Tài xế: ${t.driverName}` : <span className="text-gray-400 italic">Chưa gán tài xế</span>}
+                        </div>
+                      </td>
+
+                      {/* Distance */}
+                      <td className="px-5 py-4">
+                        <span className="font-mono font-bold text-gray-800">
+                          {t.distanceKm ? `${t.distanceKm.toFixed(1)} km` : "0.0 km"}
+                        </span>
+                        <div className="text-[11px] text-gray-400">Đo bằng GPS</div>
+                      </td>
+
+                      {/* Time */}
+                      <td className="px-5 py-4 text-xs space-y-1">
+                        <div className="text-gray-500">
+                          Dự kiến: {formatDateTime(t.plannedStartTime)}
+                        </div>
+                        {t.startTime && (
+                          <div className="text-emerald-700 font-medium">
+                            Bắt đầu: {formatDateTime(t.startTime)}
+                          </div>
+                        )}
+                        {t.endTime && (
+                          <div className="text-gray-700">
+                            Kết thúc: {formatDateTime(t.endTime)}
+                          </div>
                         )}
                       </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${STATUS_COLORS[t.status]}`}>
+
+                      {/* Safety & AI Badges */}
+                      <td className="px-5 py-4">
+                        <div className="flex flex-wrap gap-1.5 text-[11px]">
+                          <span className={`px-2 py-0.5 rounded-full border ${
+                            (t.somnolenceCount || 0) > 0
+                              ? "bg-red-50 text-red-600 border-red-200 font-bold"
+                              : "bg-gray-50 text-gray-500 border-gray-200"
+                          }`}>
+                            💤 {t.somnolenceCount || 0} Ngủ gật
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full border ${
+                            (t.incidentCount || 0) > 0
+                              ? "bg-amber-50 text-amber-600 border-amber-200 font-bold"
+                              : "bg-gray-50 text-gray-500 border-gray-200"
+                          }`}>
+                            ⚠️ {t.incidentCount || 0} Sự cố
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleViewTracks(t)}
+                          className="mt-1 text-[11px] text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                        >
+                          📍 {t.gpsTrackCount || 0} Tọa độ GPS (Xem vệt đường)
+                        </button>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-5 py-4">
+                        <span
+                          className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                            STATUS_COLORS[t.status]
+                          }`}
+                        >
                           {STATUS_LABELS[t.status]}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                      {/* Actions */}
+                      <td className="px-5 py-4 text-right space-x-2">
+                        {t.status === "PLANNED" && !t.vehicleId && (
                           <button
-                            id={`trip-edit-${t.id}`}
-                            onClick={() => openEdit(t)}
-                            disabled={t.status === "COMPLETED" || t.status === "CANCELLED"}
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-blue-200 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            onClick={() => handleAutoDispatch(t.id)}
+                            title="Tự động tìm xe và tài xế rảnh nổ đơn"
+                            className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
                           >
-                            Sửa
+                            ⚡ Nổ đơn
                           </button>
+                        )}
+
+                        {t.status === "PLANNED" || t.status === "ASSIGNED" ? (
                           <button
-                            id={`trip-delete-${t.id}`}
-                            onClick={() => setDeleteTarget(t)}
-                            disabled={t.status === "IN_PROGRESS"}
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-red-500/50 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            onClick={() => handleStartTrip(t.id)}
+                            title="Bắt đầu chuyến đi"
+                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors"
                           >
-                            Xoá
+                            ▶ Bắt đầu
                           </button>
-                        </div>
+                        ) : null}
+
+                        {t.status === "IN_PROGRESS" ? (
+                          <button
+                            onClick={() => handleEndTrip(t.id)}
+                            title="Kết thúc chuyến đi"
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
+                          >
+                            🏁 Kết thúc
+                          </button>
+                        ) : null}
+
+                        <button
+                          onClick={() => openEditModal(t)}
+                          className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          Sửa
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(t.id)}
+                          className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          Xóa
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -558,53 +742,30 @@ export default function TripsPage() {
             </div>
           )}
         </div>
+      </div>
 
-        {!loading && (
-          <p className="mt-3 text-xs text-gray-400 text-right">
-            Hiển thị {filtered.length} / {trips.length} chuyến đi
-          </p>
-        )}
-      </main>
-
-      {showModal && (
+      {/* Trip Modal */}
+      {modalOpen && (
         <TripModal
-          title={isEdit ? "Chỉnh sửa chuyến đi" : "Lên kế hoạch chuyến đi mới"}
-          onClose={() => setShowModal(false)}
+          title={isEdit ? "Cập nhật Chuyến Đi" : "Tạo Chuyến Đi Mới"}
+          onClose={() => setModalOpen(false)}
           onSubmit={handleSubmit}
           form={form}
           setForm={setForm}
+          vehicles={vehicles}
           loading={modalLoading}
           error={modalError}
           isEdit={isEdit}
         />
       )}
 
-      {deleteTarget && (
-        <ConfirmDeleteModal
-          trip={deleteTarget}
-          onClose={() => setDeleteTarget(null)}
-          onConfirm={handleDelete}
-          loading={deleteLoading}
+      {/* GPS Tracks Modal */}
+      {trackModalTrip && (
+        <TracksModal
+          trip={trackModalTrip}
+          tracks={trackPoints}
+          onClose={() => setTrackModalTrip(null)}
         />
-      )}
-
-      {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border px-5 py-3 shadow-2xl text-sm font-medium ${
-          toast.type === "success"
-            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
-            : "border-red-500/30 bg-red-500/10 text-red-600"
-        }`}>
-          {toast.type === "success" ? (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          )}
-          {toast.msg}
-        </div>
       )}
     </div>
   );
