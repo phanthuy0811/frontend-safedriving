@@ -5,6 +5,11 @@ export interface AssignmentResponse {
   driverId: string;
   accountId: string;
   assignmentAt: string; // LocalDateTime → ISO string
+  driverName?: string;
+  vehiclePlate?: string;
+  vehicleId?: string;
+  routeCode?: string;
+  routeName?: string;
 }
 
 // Sync với AssignmentRequest BE
@@ -13,3 +18,4 @@ export interface AssignmentRequest {
   driverId: string;
   accountId: string;
 }
+

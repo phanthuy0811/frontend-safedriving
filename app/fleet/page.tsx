@@ -131,7 +131,7 @@ export default function FleetPage() {
       if (err instanceof Error) {
         setAssignError(err.message);
       } else {
-        setAssignError("Lỗi khi phân công tài xế.");
+        setAssignError("Lỗi khi gán tài xế cho xe.");
       }
     } finally {
       setIsAssigning(false);
@@ -251,19 +251,18 @@ export default function FleetPage() {
                   key={st}
                   type="button"
                   onClick={() => setFilterStatus(st)}
-                  className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                    filterStatus === st
-                      ? "bg-slate-800 text-white border border-slate-700 shadow-sm"
-                      : "text-slate-400 hover:text-white hover:bg-slate-900"
-                  }`}
+                  className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${filterStatus === st
+                    ? "bg-slate-800 text-white border border-slate-700 shadow-sm"
+                    : "text-slate-400 hover:text-white hover:bg-slate-900"
+                    }`}
                 >
                   {st === "ALL"
                     ? "Tất cả"
                     : st === "IN_SERVICE"
-                    ? "Đang chạy (IN_SERVICE)"
-                    : st === "AVAILABLE"
-                    ? "Sẵn sàng (AVAILABLE)"
-                    : "Bảo dưỡng (MAINTENANCE)"}
+                      ? "Đang chạy (IN_SERVICE)"
+                      : st === "AVAILABLE"
+                        ? "Sẵn sàng (AVAILABLE)"
+                        : "Bảo dưỡng (MAINTENANCE)"}
                 </button>
               )
             )}
@@ -319,11 +318,10 @@ export default function FleetPage() {
                 <div
                   key={v.id}
                   onClick={() => setSelectedVehicleId(v.id)}
-                  className={`rounded-3xl border p-6 backdrop-blur-md transition-all cursor-pointer flex flex-col justify-between ${
-                    isSelected
-                      ? "border-cyan-400 bg-slate-900/90 ring-2 ring-cyan-500/20 shadow-2xl"
-                      : "border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:shadow-xl"
-                  }`}
+                  className={`rounded-3xl border p-6 backdrop-blur-md transition-all cursor-pointer flex flex-col justify-between ${isSelected
+                    ? "border-cyan-400 bg-slate-900/90 ring-2 ring-cyan-500/20 shadow-2xl"
+                    : "border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:shadow-xl"
+                    }`}
                 >
                   <div>
                     {/* Header */}
@@ -346,13 +344,12 @@ export default function FleetPage() {
                       </div>
 
                       <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          v.status === "IN_SERVICE"
-                            ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                            : v.status === "AVAILABLE"
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${v.status === "IN_SERVICE"
+                          ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                          : v.status === "AVAILABLE"
                             ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                             : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                        }`}
+                          }`}
                       >
                         {v.status}
                       </span>
@@ -361,9 +358,9 @@ export default function FleetPage() {
                     {/* Meta info */}
                     <div className="space-y-2.5 text-xs border-t border-slate-800/80 pt-4 mb-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Tài xế phân công:</span>
+                        <span className="text-slate-400">Tài xế phụ trách:</span>
                         <span className="font-semibold text-slate-200">
-                          {v.assignedDriverName || "Chưa phân công"}
+                          {v.assignedDriverName || "Chưa gán tài xế"}
                         </span>
                       </div>
 
@@ -419,7 +416,7 @@ export default function FleetPage() {
                         }}
                         className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-cyan-400 hover:bg-slate-700 hover:text-white transition-colors"
                       >
-                        Phân công tài xế
+                        Gán tài xế
                       </button>
                     )}
                   </div>
@@ -440,7 +437,7 @@ export default function FleetPage() {
 
           <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl z-10">
             <h3 className="text-base font-bold text-white mb-1">
-              Phân công tài xế cho xe {assignModalVehicle.plateNumber}
+              Gán tài xế cho xe {assignModalVehicle.plateNumber}
             </h3>
             <p className="text-xs text-slate-400 mb-4">
               Nhập mã định danh (Driver UUID) của tài xế phụ trách phương tiện.
@@ -484,7 +481,7 @@ export default function FleetPage() {
                   disabled={isAssigning}
                   className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:opacity-95 disabled:opacity-50"
                 >
-                  {isAssigning ? "Đang lưu..." : "Xác nhận phân công"}
+                  {isAssigning ? "Đang lưu..." : "Xác nhận gán"}
                 </button>
               </div>
             </form>

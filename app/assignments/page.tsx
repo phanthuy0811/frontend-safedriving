@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useAuth } from "@/context/AuthContext";
 import {
   getAllAssignments,
   createAssignment,
@@ -95,19 +96,9 @@ function AssignmentModal({ title, onClose, onSubmit, form, setForm, loading, err
             />
           </div>
 
-          {/* Account ID */}
-          <div>
-            <label className="block mb-1.5 text-xs font-semibold text-gray-500">
-              ID Người phân công (Account) <span className="text-red-600">*</span>
-            </label>
-            <input
-              id="assignment-account-id"
-              type="text"
-              placeholder="UUID tài khoản thực hiện phân công"
-              value={form.accountId}
-              onChange={(e) => setForm({ ...form, accountId: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-colors font-mono"
-            />
+          {/* Vehicle info note */}
+          <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-2.5 text-xs text-blue-600">
+            🚐 <strong>Phương tiện:</strong> Tự động nhận diện theo xe đã lưu trong hồ sơ tài xế (quản lý tại mục Đội xe). Không cần nhập phương tiện.
           </div>
         </div>
 
@@ -151,8 +142,11 @@ function ConfirmDeleteModal({
           </div>
         </div>
         <p className="text-sm text-gray-700 mb-2">
-          Tài xế <span className="font-mono font-bold text-amber-600">{assignment.driverId.slice(0, 8)}…</span>{" "}
-          → Chuyến <span className="font-mono font-bold text-gray-900">{assignment.tripId.slice(0, 8)}…</span>
+          Tài xế <span className="font-bold text-amber-600">{assignment.driverName || assignment.driverId.slice(0, 8) + "…"}</span>{" "}
+          {assignment.vehiclePlate && (
+            <span className="font-mono text-xs text-blue-600 font-semibold">(Xe {assignment.vehiclePlate})</span>
+          )}{" "}
+          → Chuyến <span className="font-bold text-gray-900">{assignment.routeCode ? `${assignment.routeCode} - ${assignment.routeName}` : assignment.tripId.slice(0, 8) + "…"}</span>
         </p>
         <p className="text-xs text-gray-400 mb-6">Phân công lúc {formatDateTime(assignment.assignmentAt)}</p>
         <div className="flex justify-end gap-3">
@@ -174,6 +168,7 @@ function ConfirmDeleteModal({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AssignmentsPage() {
+  const { user } = useAuth();
   const [assignments, setAssignments] = useState<AssignmentResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -219,13 +214,21 @@ export default function AssignmentsPage() {
       a.tripId.toLowerCase().includes(q) ||
       a.driverId.toLowerCase().includes(q) ||
       a.accountId.toLowerCase().includes(q) ||
-      a.id.toLowerCase().includes(q);
+      a.id.toLowerCase().includes(q) ||
+      (a.driverName && a.driverName.toLowerCase().includes(q)) ||
+      (a.vehiclePlate && a.vehiclePlate.toLowerCase().includes(q)) ||
+      (a.routeName && a.routeName.toLowerCase().includes(q)) ||
+      (a.routeCode && a.routeCode.toLowerCase().includes(q));
     const matchDriver = !filterDriverId || a.driverId === filterDriverId;
     return matchSearch && matchDriver;
   });
 
   const openCreate = () => {
-    setForm(EMPTY_FORM);
+    setForm({
+      tripId: "",
+      driverId: "",
+      accountId: user?.accountId || "",
+    });
     setIsEdit(false);
     setEditingId(null);
     setModalError(null);
@@ -241,18 +244,24 @@ export default function AssignmentsPage() {
   };
 
   const handleSubmit = async () => {
+    const accountId = form.accountId.trim() || user?.accountId || "";
     if (!form.tripId.trim()) { setModalError("ID chuyến đi không được để trống."); return; }
     if (!form.driverId.trim()) { setModalError("ID tài xế không được để trống."); return; }
-    if (!form.accountId.trim()) { setModalError("ID người phân công không được để trống."); return; }
+    if (!accountId) { setModalError("Không xác định được ID người phân công. Vui lòng đăng nhập lại."); return; }
 
     setModalLoading(true);
     setModalError(null);
     try {
+      const payload: AssignmentRequest = {
+        tripId: form.tripId.trim(),
+        driverId: form.driverId.trim(),
+        accountId: accountId,
+      };
       if (isEdit && editingId) {
-        await updateAssignment(editingId, form);
+        await updateAssignment(editingId, payload);
         showToast("Cập nhật phân công thành công!", "success");
       } else {
-        await createAssignment(form);
+        await createAssignment(payload);
         showToast("Phân công tài xế thành công! Chuyến đi đã chuyển sang ASSIGNED.", "success");
       }
       setShowModal(false);
@@ -377,28 +386,42 @@ export default function AssignmentsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                    <th className="px-5 py-3 text-left">ID Phân công</th>
-                    <th className="px-5 py-3 text-left">ID Chuyến đi</th>
-                    <th className="px-5 py-3 text-left">ID Tài xế</th>
-                    <th className="px-5 py-3 text-left">Người phân công</th>
+                    <th className="px-5 py-3 text-left">Mã Phân công</th>
+                    <th className="px-5 py-3 text-left">Chuyến đi / Tuyến</th>
+                    <th className="px-5 py-3 text-left">Tài xế</th>
+                    <th className="px-5 py-3 text-left">Phương tiện (Biển số)</th>
                     <th className="px-5 py-3 text-left">Thời điểm</th>
                     <th className="px-5 py-3 text-right">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-gray-100">
                   {filtered.map((a) => (
                     <tr key={a.id} className="group hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-3.5">
                         <span className="font-mono text-[11px] text-gray-400">{a.id.slice(0, 8)}…</span>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="font-mono text-xs text-blue-600 font-semibold">{a.tripId.slice(0, 12)}…</span>
+                        <div className="font-medium text-gray-900">
+                          {a.routeCode ? `${a.routeCode} - ${a.routeName || ""}` : `Chuyến ${a.tripId.slice(0, 8)}…`}
+                        </div>
+                        <div className="text-[11px] font-mono text-gray-400">{a.tripId.slice(0, 12)}…</div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="font-mono text-xs text-amber-600 font-semibold">{a.driverId.slice(0, 12)}…</span>
+                        <div className="font-semibold text-amber-600">
+                          {a.driverName || "Tài xế"}
+                        </div>
+                        <div className="text-[11px] font-mono text-gray-400">{a.driverId.slice(0, 12)}…</div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="font-mono text-xs text-gray-500">{a.accountId.slice(0, 12)}…</span>
+                        {a.vehiclePlate ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 font-mono">
+                            🚐 {a.vehiclePlate}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-red-50 text-red-600 border border-red-200">
+                            Chưa có xe
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-3.5 text-xs text-gray-700">
                         {formatDateTime(a.assignmentAt)}

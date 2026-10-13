@@ -307,7 +307,7 @@ export default function LiveFleetMap({
           : ""
         }
           <div style="font-size: 12px; color: #475569; margin-bottom: 3px;">
-            Tài xế: <strong style="color: #1e293b;">${vehicle.assignedDriverName || "Chưa phân công"
+            Tài xế: <strong style="color: #1e293b;">${vehicle.assignedDriverName || "Chưa gán tài xế"
         }</strong>
           </div>
           <div style="font-size: 12px; color: #475569; margin-bottom: 3px;">
