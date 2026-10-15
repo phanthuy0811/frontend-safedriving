@@ -594,7 +594,7 @@ export default function TripsPage() {
       await autoDispatchTrip(id);
       loadData();
     } catch (err) {
-      alert("Lỗi nổ đơn tự động: " + (err as ApiError).message);
+      alert("Lỗi phân công tự động: " + (err as ApiError).message);
     }
   };
 
@@ -648,8 +648,8 @@ export default function TripsPage() {
           <button
             onClick={() => setSelectedStatus("ALL")}
             className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${selectedStatus === "ALL"
-                ? "bg-gray-900 text-white shadow-sm"
-                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
+              ? "bg-gray-900 text-white shadow-sm"
+              : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
               }`}
           >
             Tất cả ({trips.length})
@@ -661,8 +661,8 @@ export default function TripsPage() {
                 key={st}
                 onClick={() => setSelectedStatus(st)}
                 className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${selectedStatus === st
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
                   }`}
               >
                 {STATUS_LABELS[st]} ({count})
@@ -771,14 +771,14 @@ export default function TripsPage() {
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap gap-1.5 text-[11px]">
                           <span className={`px-2 py-0.5 rounded-full border ${(t.somnolenceCount || 0) > 0
-                              ? "bg-red-50 text-red-600 border-red-200 font-bold"
-                              : "bg-gray-50 text-gray-500 border-gray-200"
+                            ? "bg-red-50 text-red-600 border-red-200 font-bold"
+                            : "bg-gray-50 text-gray-500 border-gray-200"
                             }`}>
                             💤 {t.somnolenceCount || 0} Ngủ gật
                           </span>
                           <span className={`px-2 py-0.5 rounded-full border ${(t.incidentCount || 0) > 0
-                              ? "bg-amber-50 text-amber-600 border-amber-200 font-bold"
-                              : "bg-gray-50 text-gray-500 border-gray-200"
+                            ? "bg-amber-50 text-amber-600 border-amber-200 font-bold"
+                            : "bg-gray-50 text-gray-500 border-gray-200"
                             }`}>
                             ⚠️ {t.incidentCount || 0} Sự cố
                           </span>
@@ -806,10 +806,10 @@ export default function TripsPage() {
                         {t.status === "PLANNED" && !t.vehicleId && (
                           <button
                             onClick={() => handleAutoDispatch(t.id)}
-                            title="Tự động tìm xe và tài xế rảnh nổ đơn"
+                            title="Phân công nhanh chuyến đi"
                             className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
                           >
-                            ⚡ Nổ đơn
+                            ⚡ Phân công nhanh
                           </button>
                         )}
                         <button
