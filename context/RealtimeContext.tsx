@@ -124,7 +124,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       eventSourceRef.current.close();
     }
 
-    const sseUrl = `${API_BASE_URL}/api/v1/realtime/stream`;
+    const sseUrl = `${API_BASE_URL}/realtime/stream`;
     setConnectionStatus("CONNECTING");
 
     try {

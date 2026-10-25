@@ -24,7 +24,39 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
-        {/* 1. Giám sát Đội xe & Vị trí */}
+        {/* 1. Quản lý nhân sự (Đặt lên trên đầu) */}
+        <div>
+          <div className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            Quản lý nhân sự
+          </div>
+          <div className="space-y-1">
+            <Link
+              href="/drivers"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                pathname.startsWith("/drivers")
+                  ? "bg-blue-50 text-blue-700 font-semibold"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
+              <span className="text-base">🧑‍✈️</span>
+              <span>Tài xế (Drivers)</span>
+            </Link>
+
+            <Link
+              href="/staff"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                pathname.startsWith("/staff")
+                  ? "bg-blue-50 text-blue-700 font-semibold"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
+              <span className="text-base">👔</span>
+              <span>Hồ sơ Nhân sự (Staff)</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* 2. Giám sát trực tuyến */}
         <div>
           <div className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
             Giám sát trực tuyến
@@ -47,7 +79,7 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* 2. AI Cảnh báo & An toàn */}
+        {/* 3. AI Cảnh báo & An toàn */}
         <div>
           <div className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
             AI Cảnh báo & An toàn
@@ -98,7 +130,7 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* 3. Quản lý vận hành */}
+        {/* 4. Quản lý vận hành */}
         <div>
           <div className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
             Quản lý vận hành

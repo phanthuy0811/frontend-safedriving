@@ -3,12 +3,12 @@ import { AssignDriverRequest, VehicleResponse, VehicleStatus } from "@/types/veh
 
 export async function getAllVehicles(status?: VehicleStatus): Promise<VehicleResponse[]> {
   const query = status ? `?status=${encodeURIComponent(status)}` : "";
-  const response = await apiClient.get<VehicleResponse[]>(`/api/v1/vehicles${query}`);
+  const response = await apiClient.get<VehicleResponse[]>(`/vehicles${query}`);
   return response.data || [];
 }
 
 export async function getVehicleById(id: string): Promise<VehicleResponse> {
-  const response = await apiClient.get<VehicleResponse>(`/api/v1/vehicles/${id}`);
+  const response = await apiClient.get<VehicleResponse>(`/vehicles/${id}`);
   return response.data!;
 }
 
@@ -18,7 +18,7 @@ export async function assignDriverToVehicle(
 ): Promise<VehicleResponse> {
   const payload: AssignDriverRequest = { driver_id: driverId };
   const response = await apiClient.post<VehicleResponse>(
-    `/api/v1/vehicles/${vehicleId}/assign-driver`,
+    `/vehicles/${vehicleId}/assign-driver`,
     payload
   );
   return response.data!;
@@ -28,7 +28,7 @@ export async function assignDriverToVehicle(
 export async function createVehicle(
   request: any
 ): Promise<VehicleResponse> {
-  const response = await apiClient.post<VehicleResponse>("/api/v1/vehicles", request);
+  const response = await apiClient.post<VehicleResponse>("/vehicles", request);
   return response.data!;
 }
 
@@ -38,7 +38,7 @@ export async function updateVehicle(
   request: any
 ): Promise<VehicleResponse> {
   const response = await apiClient.put<VehicleResponse>(
-    `/api/v1/vehicles/${id}`,
+    `/vehicles/${id}`,
     request
   );
   return response.data!;
@@ -46,5 +46,5 @@ export async function updateVehicle(
 
 // DELETE /vehicles/{id} — soft delete, ADMIN, MANAGER
 export async function deleteVehicle(id: string): Promise<void> {
-  await apiClient.delete<void>(`/api/v1/vehicles/${id}`);
+  await apiClient.delete<void>(`/vehicles/${id}`);
 }
