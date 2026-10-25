@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import Navbar from "@/components/Navbar";
 import HitlReviewModal from "@/components/hitl/HitlReviewModal";
 import { useAuth } from "@/context/AuthContext";
 import { useRealtime } from "@/context/RealtimeContext";
@@ -65,26 +64,24 @@ export default function HitlPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white">
-      <Navbar />
-
+    <div className="flex flex-col h-full bg-gray-50 text-gray-900 selection:bg-blue-500 selection:text-white">
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header banner */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-6 mb-8">
           <div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-3 py-1 text-xs font-bold text-red-400 border border-red-500/20">
-                <span className="h-2 w-2 rounded-full bg-red-400 animate-ping"></span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600 border border-red-200">
+                <span className="h-2 w-2 rounded-full bg-red-500 animate-ping"></span>
                 Human-in-the-Loop (HITL)
               </span>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-gray-500">
                 Chuẩn giám định vi phạm mức HIGH/CRITICAL
               </span>
             </div>
-            <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
               Trung tâm Thẩm định Vi phạm An toàn
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-slate-400">
+            <p className="mt-1 text-xs sm:text-sm text-gray-500">
               Kiểm duyệt các bằng chứng vi phạm do Edge AI phát hiện, xác minh độ chính xác và loại bỏ sai số.
             </p>
           </div>
@@ -93,10 +90,10 @@ export default function HitlPage() {
             <button
               type="button"
               onClick={() => fetchCases(activeTab, page)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 shadow-sm transition-colors"
             >
               <svg
-                className="w-4 h-4"
+                className="w-4 h-4 text-gray-500"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -114,14 +111,14 @@ export default function HitlPage() {
         </div>
 
         {/* Tab Filters */}
-        <div className="flex items-center gap-2 border-b border-slate-800 pb-3 mb-6">
+        <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-6">
           <button
             type="button"
             onClick={() => setActiveTab("PENDING")}
             className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
               activeTab === "PENDING"
-                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20"
-                : "text-slate-400 hover:text-white hover:bg-slate-900/60"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
             }`}
           >
             <span>Hàng đợi chờ duyệt (PENDING)</span>
@@ -137,8 +134,8 @@ export default function HitlPage() {
             onClick={() => setActiveTab("APPROVED")}
             className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
               activeTab === "APPROVED"
-                ? "bg-slate-800 text-emerald-400 border border-emerald-500/30"
-                : "text-slate-400 hover:text-white hover:bg-slate-900/60"
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
             }`}
           >
             <span>Đã phê duyệt (APPROVED)</span>
@@ -149,8 +146,8 @@ export default function HitlPage() {
             onClick={() => setActiveTab("REJECTED")}
             className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
               activeTab === "REJECTED"
-                ? "bg-slate-800 text-slate-200 border border-slate-700"
-                : "text-slate-400 hover:text-white hover:bg-slate-900/60"
+                ? "bg-gray-100 text-gray-800 border border-gray-300 font-bold"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
             }`}
           >
             <span>Đã bác bỏ (REJECTED)</span>
@@ -159,14 +156,14 @@ export default function HitlPage() {
 
         {/* Not authenticated warning banner */}
         {!isAuthenticated && (
-          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 text-xs text-amber-300 flex items-center justify-between">
+          <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 flex-shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <span>Bạn cần đăng nhập với vai trò <strong>MANAGER</strong> hoặc <strong>ADMIN</strong> để gửi quyết định kiểm duyệt vi phạm.</span>
             </div>
-            <Link href="/login" className="font-bold underline ml-2">Đăng nhập</Link>
+            <Link href="/login" className="font-bold underline ml-2 text-amber-900">Đăng nhập</Link>
           </div>
         )}
 
@@ -174,7 +171,7 @@ export default function HitlPage() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <svg
-              className="h-8 w-8 animate-spin text-cyan-400 mb-3"
+              className="h-8 w-8 animate-spin text-blue-600 mb-3"
               viewBox="0 0 24 24"
               fill="none"
             >
@@ -192,11 +189,11 @@ export default function HitlPage() {
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-            <p className="text-xs text-slate-400">Đang đồng bộ hàng đợi vi phạm...</p>
+            <p className="text-xs text-gray-500">Đang đồng bộ hàng đợi vi phạm...</p>
           </div>
         ) : cases.length === 0 ? (
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-12 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 mb-4">
+          <div className="rounded-3xl border border-gray-200 bg-white p-12 text-center shadow-sm">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200 mb-4">
               <svg
                 className="h-8 w-8"
                 fill="none"
@@ -211,10 +208,10 @@ export default function HitlPage() {
                 />
               </svg>
             </div>
-            <h3 className="text-base font-bold text-white">
+            <h3 className="text-base font-bold text-gray-900">
               Hàng đợi trống
             </h3>
-            <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
+            <p className="mt-1 text-xs text-gray-500 max-w-sm mx-auto">
               {activeTab === "PENDING"
                 ? "Không có vi phạm an toàn nào cần kiểm duyệt. Tất cả tài xế và phương tiện đang hoạt động bình thường!"
                 : "Không tìm thấy bản ghi nào trong mục này."}
@@ -222,9 +219,9 @@ export default function HitlPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur-md">
+            <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
               <table className="w-full text-left text-xs">
-                <thead className="border-b border-slate-800 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                <thead className="border-b border-gray-200 bg-gray-50 text-[11px] font-bold uppercase tracking-wider text-gray-500">
                   <tr>
                     <th className="px-4 py-3.5">Thời gian</th>
                     <th className="px-4 py-3.5">Phương tiện</th>
@@ -236,16 +233,16 @@ export default function HitlPage() {
                     <th className="px-4 py-3.5 text-right">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-gray-100">
                   {cases.map((c) => {
                     const alert = c.alert;
                     const alertTypeStr = alert?.alert_type || "DROWSINESS";
                     return (
                       <tr
                         key={c.id}
-                        className="hover:bg-slate-800/40 transition-colors"
+                        className="hover:bg-gray-50/80 transition-colors"
                       >
-                        <td className="px-4 py-3.5 whitespace-nowrap text-slate-300 font-mono">
+                        <td className="px-4 py-3.5 whitespace-nowrap text-gray-600 font-mono">
                           {alert?.timestamp
                             ? new Date(alert.timestamp).toLocaleTimeString("vi-VN", {
                                 hour: "2-digit",
@@ -254,14 +251,14 @@ export default function HitlPage() {
                               })
                             : new Date(c.created_at).toLocaleTimeString("vi-VN")}
                         </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap font-bold font-mono text-cyan-400">
+                        <td className="px-4 py-3.5 whitespace-nowrap font-bold font-mono text-blue-600">
                           {alert?.plate_number || alert?.vehicle_id || "N/A"}
                         </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap text-slate-200">
+                        <td className="px-4 py-3.5 whitespace-nowrap text-gray-800 font-medium">
                           {alert?.driver_name || alert?.driver_id || "Chưa xác định"}
                         </td>
                         <td className="px-4 py-3.5 whitespace-nowrap">
-                          <span className="font-semibold text-rose-300">
+                          <span className="font-semibold text-rose-600">
                             {ALERT_TYPE_LABELS[alertTypeStr] || alertTypeStr}
                           </span>
                         </td>
@@ -269,24 +266,24 @@ export default function HitlPage() {
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
                               alert?.severity === "CRITICAL"
-                                ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                                ? "bg-red-50 text-red-700 border border-red-200"
                                 : alert?.severity === "HIGH"
-                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                : "bg-blue-50 text-blue-700 border border-blue-200"
                             }`}
                           >
                             {alert?.severity || "MEDIUM"}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap text-[11px] font-mono text-slate-400">
+                        <td className="px-4 py-3.5 whitespace-nowrap text-[11px] font-mono text-gray-500">
                           {alert?.ear_value !== undefined && (
                             <span className="mr-2">
                               EAR:{" "}
                               <strong
                                 className={
                                   alert.ear_value < 0.22
-                                    ? "text-red-400 font-bold"
-                                    : "text-slate-200"
+                                    ? "text-red-600 font-bold"
+                                    : "text-gray-800"
                                 }
                               >
                                 {alert.ear_value.toFixed(2)}
@@ -299,8 +296,8 @@ export default function HitlPage() {
                               <strong
                                 className={
                                   alert.perclos_value > 0.15
-                                    ? "text-amber-400 font-bold"
-                                    : "text-slate-200"
+                                    ? "text-amber-600 font-bold"
+                                    : "text-gray-800"
                                 }
                               >
                                 {(alert.perclos_value * 100).toFixed(0)}%
@@ -310,7 +307,7 @@ export default function HitlPage() {
                         </td>
                         <td className="px-4 py-3.5 whitespace-nowrap">
                           {alert?.snapshot_url ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400">
+                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
                               <svg
                                 className="w-3.5 h-3.5"
                                 fill="none"
@@ -327,7 +324,7 @@ export default function HitlPage() {
                               MinIO S3
                             </span>
                           ) : (
-                            <span className="text-[11px] text-slate-500">
+                            <span className="text-[11px] text-gray-400">
                               Chưa có
                             </span>
                           )}
@@ -336,7 +333,7 @@ export default function HitlPage() {
                           <button
                             type="button"
                             onClick={() => setSelectedCase(c)}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:opacity-95 active:scale-95 transition-all"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all"
                           >
                             <span>Thẩm định</span>
                             <svg
@@ -362,16 +359,16 @@ export default function HitlPage() {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between px-2 text-xs text-slate-400">
+            <div className="flex items-center justify-between px-2 text-xs text-gray-500">
               <span>
-                Tổng cộng: <strong className="text-white">{totalElements}</strong> ca vi phạm
+                Tổng cộng: <strong className="text-gray-900">{totalElements}</strong> ca vi phạm
               </span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   disabled={page === 0}
                   onClick={() => fetchCases(activeTab, page - 1)}
-                  className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-40 shadow-sm"
                 >
                   Trang trước
                 </button>
@@ -382,7 +379,7 @@ export default function HitlPage() {
                   type="button"
                   disabled={page >= totalPages - 1}
                   onClick={() => fetchCases(activeTab, page + 1)}
-                  className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-40 shadow-sm"
                 >
                   Trang sau
                 </button>

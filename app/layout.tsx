@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 import { Providers } from "./providers";
 import RealtimeAlertToast from "@/components/common/RealtimeAlertToast";
-import Sidebar from "@/components/Sidebar";
+import AppLayout from "@/components/AppLayout";
 
 export const metadata: Metadata = {
   title: "Safe Driving Management System",
@@ -33,12 +33,7 @@ export default function RootLayout({
     >
       <body className="h-full flex overflow-hidden bg-gray-50 text-gray-900 selection:bg-blue-500 selection:text-white">
         <Providers>
-          <Sidebar />
-          <div className="flex-1 flex flex-col h-full overflow-hidden">
-            <main className="flex-1 overflow-y-auto">
-              {children}
-            </main>
-          </div>
+          <AppLayout>{children}</AppLayout>
           <RealtimeAlertToast />
         </Providers>
       </body>

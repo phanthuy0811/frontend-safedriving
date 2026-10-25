@@ -58,34 +58,34 @@ export default function HitlReviewModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity"
+        className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/95 shadow-2xl backdrop-blur-xl z-10 flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl z-10 flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-slate-950/40">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 bg-gray-50/60">
           <div className="flex items-center gap-3">
             <span
               className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                 hitlCase.status === "PENDING"
-                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  ? "bg-amber-50 text-amber-700 border border-amber-200"
                   : hitlCase.status === "APPROVED"
-                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                  : "bg-slate-700/30 text-slate-400 border border-slate-700"
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-gray-100 text-gray-700 border border-gray-200"
               }`}
             >
               {hitlCase.status === "PENDING" && (
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping mr-1.5" />
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping mr-1.5" />
               )}
               {hitlCase.status}
             </span>
             <div>
-              <h3 className="text-base font-bold text-white">
+              <h3 className="text-base font-bold text-gray-900">
                 Thẩm định vi phạm an toàn #{hitlCase.id.slice(0, 8)}
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-gray-500">
                 Ghi nhận lúc:{" "}
                 {alert?.timestamp
                   ? new Date(alert.timestamp).toLocaleString("vi-VN")
@@ -97,7 +97,7 @@ export default function HitlReviewModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="rounded-xl p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
           >
             <svg
               className="h-5 w-5"
@@ -118,40 +118,40 @@ export default function HitlReviewModal({
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {error && (
-            <div className="rounded-xl border border-red-500/30 bg-red-950/40 p-3 text-xs text-red-300">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
               {error}
             </div>
           )}
 
           {/* Quick Info Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-3.5">
-              <span className="text-slate-400 block mb-1">Phương tiện (Biển số)</span>
-              <span className="font-bold font-mono text-cyan-400 text-sm">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-3.5">
+              <span className="text-gray-500 block mb-1">Phương tiện (Biển số)</span>
+              <span className="font-bold font-mono text-blue-600 text-sm">
                 {alert?.plate_number || alert?.vehicle_id || "N/A"}
               </span>
             </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-3.5">
-              <span className="text-slate-400 block mb-1">Tài xế phụ trách</span>
-              <span className="font-semibold text-slate-200 text-sm">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-3.5">
+              <span className="text-gray-500 block mb-1">Tài xế phụ trách</span>
+              <span className="font-semibold text-gray-900 text-sm">
                 {alert?.driver_name || alert?.driver_id || "Chưa xác định"}
               </span>
             </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-3.5">
-              <span className="text-slate-400 block mb-1">Hành vi AI phát hiện</span>
-              <span className="font-semibold text-rose-400 text-sm">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-3.5">
+              <span className="text-gray-500 block mb-1">Hành vi AI phát hiện</span>
+              <span className="font-semibold text-rose-600 text-sm">
                 {alert?.alert_type
                   ? ALERT_TYPE_LABELS[alert.alert_type] || alert.alert_type
                   : "N/A"}
               </span>
             </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-3.5">
-              <span className="text-slate-400 block mb-1">Mức độ nghiêm trọng</span>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-3.5">
+              <span className="text-gray-500 block mb-1">Mức độ nghiêm trọng</span>
               <span
                 className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
                   alert?.severity === "CRITICAL" || alert?.severity === "HIGH"
-                    ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                    : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    ? "bg-red-50 text-red-700 border border-red-200"
+                    : "bg-amber-50 text-amber-700 border border-amber-200"
                 }`}
               >
                 {alert?.severity || "MEDIUM"}
@@ -162,12 +162,12 @@ export default function HitlReviewModal({
           {/* Evidence Image and AI Biometrics HUD */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Snapshot Image */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 flex flex-col justify-between">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-2">
                     <svg
-                      className="w-4 h-4 text-cyan-400"
+                      className="w-4 h-4 text-blue-600"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -188,13 +188,13 @@ export default function HitlReviewModal({
                     Ảnh chụp bằng chứng (MinIO S3)
                   </h4>
                   {alert?.speed_kmh !== undefined && (
-                    <span className="font-mono text-xs text-cyan-400">
+                    <span className="font-mono text-xs text-blue-600 font-semibold">
                       Vận tốc: {alert.speed_kmh.toFixed(1)} km/h
                     </span>
                   )}
                 </div>
 
-                <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-900 flex items-center justify-center">
+                <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center">
                   {alert?.snapshot_url ? (
                     <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -212,17 +212,17 @@ export default function HitlReviewModal({
                           if (errDiv) errDiv.style.display = "flex";
                         }}
                       />
-                      <div id="snapshot-error-msg" style={{ display: "none" }} className="flex-col items-center justify-center p-6 text-amber-400 text-center">
+                      <div id="snapshot-error-msg" style={{ display: "none" }} className="flex-col items-center justify-center p-6 text-amber-700 text-center">
                         <p className="text-xs font-medium">Không thể hiển thị ảnh từ MinIO S3</p>
-                        <a href={alert.snapshot_url} target="_blank" rel="noreferrer" className="text-[11px] underline text-cyan-400 mt-1 block">
+                        <a href={alert.snapshot_url} target="_blank" rel="noreferrer" className="text-[11px] underline text-blue-600 mt-1 block">
                           Mở ảnh trực tiếp
                         </a>
                       </div>
                     </>
                   ) : (
-                    <div className="text-center p-6 text-slate-500">
+                    <div className="text-center p-6 text-gray-400">
                       <svg
-                        className="mx-auto h-12 w-12 text-slate-600 mb-2"
+                        className="mx-auto h-12 w-12 text-gray-300 mb-2"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -241,9 +241,9 @@ export default function HitlReviewModal({
               </div>
 
               {alert?.latitude && alert?.longitude && (
-                <div className="mt-3 text-[11px] text-slate-400 flex items-center gap-1.5 font-mono">
+                <div className="mt-3 text-[11px] text-gray-500 flex items-center gap-1.5 font-mono">
                   <svg
-                    className="w-3.5 h-3.5 text-cyan-400"
+                    className="w-3.5 h-3.5 text-blue-600"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -267,10 +267,10 @@ export default function HitlReviewModal({
             </div>
 
             {/* AI Biometrics HUD */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 flex flex-col justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4 flex flex-col justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 mb-3 flex items-center gap-2">
                 <svg
-                  className="w-4 h-4 text-indigo-400"
+                  className="w-4 h-4 text-blue-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -289,14 +289,14 @@ export default function HitlReviewModal({
                 {/* EAR */}
                 <div>
                   <div className="flex justify-between mb-1">
-                    <span className="text-slate-400">
+                    <span className="text-gray-500">
                       Tỷ lệ mở mắt (EAR - Eye Aspect Ratio)
                     </span>
                     <span
                       className={`font-mono font-bold ${
                         (alert?.ear_value ?? 1) < 0.22
-                          ? "text-red-400"
-                          : "text-emerald-400"
+                          ? "text-red-600"
+                          : "text-emerald-600"
                       }`}
                     >
                       {alert?.ear_value !== undefined
@@ -305,7 +305,7 @@ export default function HitlReviewModal({
                       {(alert?.ear_value ?? 1) < 0.22 && "(Nhắm mắt)"}
                     </span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
                     <div
                       className={`h-full ${
                         (alert?.ear_value ?? 1) < 0.22
@@ -320,7 +320,7 @@ export default function HitlReviewModal({
                       }}
                     />
                   </div>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-gray-400">
                     Ngưỡng báo động: &lt; 0.22 (Bình thường: 0.28 - 0.35)
                   </span>
                 </div>
@@ -328,14 +328,14 @@ export default function HitlReviewModal({
                 {/* MAR */}
                 <div>
                   <div className="flex justify-between mb-1">
-                    <span className="text-slate-400">
+                    <span className="text-gray-500">
                       Tỷ lệ mở miệng (MAR - Mouth Aspect Ratio)
                     </span>
                     <span
                       className={`font-mono font-bold ${
                         (alert?.mar_value ?? 0) > 0.6
-                          ? "text-amber-400"
-                          : "text-slate-200"
+                          ? "text-amber-600"
+                          : "text-gray-700"
                       }`}
                     >
                       {alert?.mar_value !== undefined
@@ -344,7 +344,7 @@ export default function HitlReviewModal({
                       {(alert?.mar_value ?? 0) > 0.6 && "(Ngáp)"}
                     </span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
                     <div
                       className={`h-full ${
                         (alert?.mar_value ?? 0) > 0.6
@@ -359,7 +359,7 @@ export default function HitlReviewModal({
                       }}
                     />
                   </div>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-gray-400">
                     Ngưỡng ngáp: &gt; 0.60
                   </span>
                 </div>
@@ -367,14 +367,14 @@ export default function HitlReviewModal({
                 {/* PERCLOS */}
                 <div>
                   <div className="flex justify-between mb-1">
-                    <span className="text-slate-400">
+                    <span className="text-gray-500">
                       Tỷ lệ nhắm mắt tích lũy 60s (PERCLOS)
                     </span>
                     <span
                       className={`font-mono font-bold ${
                         (alert?.perclos_value ?? 0) > 0.15
-                          ? "text-red-400"
-                          : "text-slate-200"
+                          ? "text-red-600"
+                          : "text-gray-700"
                       }`}
                     >
                       {alert?.perclos_value !== undefined
@@ -382,12 +382,12 @@ export default function HitlReviewModal({
                         : "N/A"}
                     </span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
                     <div
                       className={`h-full ${
                         (alert?.perclos_value ?? 0) > 0.15
                           ? "bg-red-500"
-                          : "bg-indigo-500"
+                          : "bg-blue-600"
                       }`}
                       style={{
                         width: `${Math.min(
@@ -401,21 +401,21 @@ export default function HitlReviewModal({
 
                 {/* Head Pose */}
                 <div className="grid grid-cols-2 gap-2 pt-2">
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2.5">
-                    <span className="text-[11px] text-slate-400 block">
+                  <div className="rounded-xl border border-gray-200 bg-white p-2.5">
+                    <span className="text-[11px] text-gray-400 block">
                       Độ cúi/ngửa (Pitch)
                     </span>
-                    <span className="font-mono font-bold text-slate-200">
+                    <span className="font-mono font-bold text-gray-800">
                       {alert?.pitch_value !== undefined
                         ? `${alert.pitch_value.toFixed(1)}°`
                         : "N/A"}
                     </span>
                   </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2.5">
-                    <span className="text-[11px] text-slate-400 block">
+                  <div className="rounded-xl border border-gray-200 bg-white p-2.5">
+                    <span className="text-[11px] text-gray-400 block">
                       Độ quay đầu (Yaw)
                     </span>
-                    <span className="font-mono font-bold text-slate-200">
+                    <span className="font-mono font-bold text-gray-800">
                       {alert?.yaw_value !== undefined
                         ? `${alert.yaw_value.toFixed(1)}°`
                         : "N/A"}
@@ -428,28 +428,28 @@ export default function HitlReviewModal({
 
           {/* Review Details if Already Reviewed */}
           {!isPending && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-xs">
-              <h4 className="font-semibold text-white mb-2">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4 text-xs">
+              <h4 className="font-semibold text-gray-900 mb-2">
                 Thông tin kết quả thẩm định
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <span className="text-slate-400 block">Người duyệt:</span>
-                  <span className="font-semibold text-slate-200">
+                  <span className="text-gray-500 block">Người duyệt:</span>
+                  <span className="font-semibold text-gray-800">
                     {hitlCase.reviewer_username || hitlCase.reviewer_id || "N/A"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Thời gian duyệt:</span>
-                  <span className="text-slate-200 font-mono">
+                  <span className="text-gray-500 block">Thời gian duyệt:</span>
+                  <span className="text-gray-800 font-mono">
                     {hitlCase.reviewed_at
                       ? new Date(hitlCase.reviewed_at).toLocaleString("vi-VN")
                       : "N/A"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Ghi chú:</span>
-                  <span className="text-slate-200 italic">
+                  <span className="text-gray-500 block">Ghi chú:</span>
+                  <span className="text-gray-800 italic">
                     {hitlCase.review_notes || "(Không có ghi chú)"}
                   </span>
                 </div>
@@ -459,10 +459,10 @@ export default function HitlReviewModal({
 
           {/* Review Decision Input if PENDING */}
           {isPending && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4 space-y-3">
               <label
                 htmlFor="review-notes"
-                className="block text-xs font-semibold uppercase tracking-wider text-slate-300"
+                className="block text-xs font-semibold uppercase tracking-wider text-gray-700"
               >
                 Ghi chú của Giám sát viên (Tùy chọn)
               </label>
@@ -472,18 +472,18 @@ export default function HitlReviewModal({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Nhập lý do phê duyệt hoặc lý do bác bỏ (ví dụ: xác nhận tài xế ngủ gật, hoặc ảnh bị lóa sáng do ánh nắng)..."
-                className="w-full rounded-xl border border-slate-700/80 bg-slate-900/90 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
           )}
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between border-t border-slate-800 px-6 py-4 bg-slate-950/40">
+        <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4 bg-gray-50/60">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700 transition-colors"
+            className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
           >
             Đóng
           </button>
@@ -494,7 +494,7 @@ export default function HitlReviewModal({
                 type="button"
                 disabled={isSubmitting}
                 onClick={() => handleDecision("REJECTED")}
-                className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-all disabled:opacity-50"
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-red-600 transition-all disabled:opacity-50 shadow-sm"
               >
                 {isSubmitting ? "Đang xử lý..." : "❌ Bác bỏ (Sai số AI)"}
               </button>
@@ -502,7 +502,7 @@ export default function HitlReviewModal({
                 type="button"
                 disabled={isSubmitting}
                 onClick={() => handleDecision("APPROVED")}
-                className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-5 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 hover:opacity-95 active:scale-95 transition-all disabled:opacity-50"
+                className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
               >
                 {isSubmitting ? "Đang xử lý..." : "✅ Phê duyệt vi phạm"}
               </button>

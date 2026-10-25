@@ -49,7 +49,7 @@ export default function Home() {
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <Link
                 href="/hitl"
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-lg shadow-red-500/20 transition-all hover:opacity-95 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-500/20 transition-all hover:opacity-95 active:scale-95"
               >
                 <span>Hàng đợi Kiểm duyệt HITL</span>
                 {pendingHitlCount > 0 && (
@@ -64,7 +64,7 @@ export default function Home() {
 
               <Link
                 href="/fleet"
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-md hover:bg-white hover:text-gray-900 transition-all active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-md hover:bg-gray-50 hover:text-gray-900 transition-all active:scale-95"
               >
                 <span>Quản lý Đội xe &amp; GPS</span>
                 <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
