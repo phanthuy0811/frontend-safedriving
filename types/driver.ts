@@ -1,27 +1,46 @@
-import { StaffResponse } from "./auth";
-import { VehicleStatus } from "./vehicle";
+import { StaffResponse } from "./staff";
 
 export interface DriverVehicleInfo {
   id: string;
   plateNumber: string;
   vin?: string;
   capacity?: number;
-  status?: VehicleStatus;
+  status?: string;
+}
+
+export interface DriverRequest {
+  hireDate: string; // format: date
+  urlImage?: string;
+  isActive?: boolean;
+  staffId?: string;
+  staff?: { id: string };
+  vehicleId?: string;
+  vehicle?: { id: string };
+}
+
+export interface DriverCreateRequest {
+  username: string;
+  password?: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth?: string;
+  gender?: "MALE" | "FEMALE" | "OTHER";
+  phone: string;
+  email?: string;
+  exactAddress?: string;
+  commune?: string;
+  province?: string;
+  hireDate?: string;
+  urlImage?: string;
+  isActive?: boolean;
+  vehicleId?: string;
 }
 
 export interface DriverResponse {
   id: string;
-  hireDate: string; // YYYY-MM-DD
-  urlImage?: string;
-  isActive: boolean;
-  staff?: StaffResponse;
-  vehicle?: DriverVehicleInfo;
-}
-
-export interface DriverRequest {
-  hireDate: string; // YYYY-MM-DD
+  hireDate?: string;
   urlImage?: string;
   isActive?: boolean;
-  staffId?: string;
-  vehicleId?: string;
+  staff?: StaffResponse;
+  vehicle?: DriverVehicleInfo;
 }
