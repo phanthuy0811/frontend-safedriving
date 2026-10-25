@@ -213,17 +213,10 @@ export default function DriversPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-6 mb-8">
           <div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-200">
-                <span className="h-2 w-2 rounded-full bg-blue-600"></span>
-                Fleet Operations & Drivers
-              </span>
             </div>
             <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-              Quản lý Tài xế &amp; Trạng thái Hoạt động (Drivers)
+              Quản lý Tài xế
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-gray-500">
-              Quản lý tài khoản, trạng thái phân công phương tiện và hồ sơ nhân sự của đội ngũ tài xế.
-            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -315,7 +308,7 @@ export default function DriversPage() {
                 <tr>
                   <th className="px-4 py-3.5">Tài xế</th>
                   <th className="px-4 py-3.5">Số điện thoại</th>
-                  <th className="px-4 py-3.5">Tài khoản (Username)</th>
+                  <th className="px-4 py-3.5">Username</th>
                   <th className="px-4 py-3.5">Xe được giao</th>
                   <th className="px-4 py-3.5">Ngày tuyển dụng</th>
                   <th className="px-4 py-3.5">Trạng thái</th>
@@ -344,7 +337,7 @@ export default function DriversPage() {
                           </div>
                           <div>
                             <p className="font-semibold text-gray-900">{fullName || "Chưa cập nhật tên"}</p>
-                            <p className="text-[10px] text-gray-400 font-mono">ID: {driver.id.slice(0, 8)}...</p>
+
                           </div>
                         </div>
                       </td>
@@ -376,8 +369,8 @@ export default function DriversPage() {
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${driver.isActive
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : "bg-gray-100 text-gray-600 border border-gray-200"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : "bg-gray-100 text-gray-600 border border-gray-200"
                             }`}
                         >
                           <span
@@ -800,7 +793,7 @@ export default function DriversPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-gray-900">Chi tiết Hồ sơ Tài xế</h3>
-                  <p className="text-xs text-gray-500 font-mono">Endpoint: GET /drivers/{`{id}`}</p>
+
                 </div>
               </div>
               <button
@@ -849,12 +842,12 @@ export default function DriversPage() {
                         <h4 className="text-lg font-bold text-gray-900">
                           {viewingDriver.staff?.fullName || `${viewingDriver.staff?.lastName || ""} ${viewingDriver.staff?.firstName || ""}` || "Chưa cập nhật tên"}
                         </h4>
-                        <p className="text-xs text-gray-500 font-mono mt-0.5">Mã tài xế (ID): {viewingDriver.id}</p>
+
                       </div>
                       <span
                         className={`inline-flex items-center gap-1.5 self-center sm:self-start px-2.5 py-1 rounded-full text-xs font-bold ${viewingDriver.isActive
-                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                            : "bg-gray-100 text-gray-700 border border-gray-200"
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                          : "bg-gray-100 text-gray-700 border border-gray-200"
                           }`}
                       >
                         <span

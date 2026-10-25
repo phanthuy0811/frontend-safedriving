@@ -386,12 +386,9 @@ export default function RoutesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
-            <span>🛣️</span>
-            <span>Danh Mục Tuyến Đường</span>
+            <span>Quản lý Tuyến Đường</span>
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Quản lý các tuyến đường vận chuyển, cự ly km và thời gian chạy tiêu chuẩn
-          </p>
+
         </div>
         <button
           onClick={openCreateModal}
@@ -404,24 +401,6 @@ export default function RoutesPage() {
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng số tuyến</div>
-          <div className="mt-2 text-3xl font-extrabold text-gray-900">{totalRoutes}</div>
-          <p className="mt-1 text-xs text-gray-400">Tuyến đường đã lưu trong hệ thống</p>
-        </div>
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm">
-          <div className="text-xs font-medium text-emerald-700 uppercase tracking-wider">Đang khai thác</div>
-          <div className="mt-2 text-3xl font-extrabold text-emerald-700">{activeRoutes}</div>
-          <p className="mt-1 text-xs text-emerald-600/80">Sẵn sàng nhận tạo chuyến đi</p>
-        </div>
-        <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-5 shadow-sm">
-          <div className="text-xs font-medium text-blue-700 uppercase tracking-wider">Cự ly trung bình</div>
-          <div className="mt-2 text-3xl font-extrabold text-blue-700">{avgDistance} <span className="text-base font-medium">km</span></div>
-          <p className="mt-1 text-xs text-blue-600/80">Chiều dài tuyến trung bình</p>
-        </div>
-      </div>
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
@@ -443,31 +422,28 @@ export default function RoutesPage() {
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => setStatusFilter("ALL")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-              statusFilter === "ALL"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${statusFilter === "ALL"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
           >
             Tất cả ({totalRoutes})
           </button>
           <button
             onClick={() => setStatusFilter("ACTIVE")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-              statusFilter === "ACTIVE"
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${statusFilter === "ACTIVE"
+              ? "bg-emerald-600 text-white shadow-sm"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
           >
             Đang chạy ({activeRoutes})
           </button>
           <button
             onClick={() => setStatusFilter("INACTIVE")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-              statusFilter === "INACTIVE"
-                ? "bg-gray-700 text-white shadow-sm"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${statusFilter === "INACTIVE"
+              ? "bg-gray-700 text-white shadow-sm"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
           >
             Tạm dừng ({totalRoutes - activeRoutes})
           </button>

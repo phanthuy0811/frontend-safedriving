@@ -34,7 +34,7 @@ export default function RootLayout({
     >
       <body
         suppressHydrationWarning
-        className="h-full flex overflow-hidden bg-gray-50 text-gray-900 selection:bg-blue-500 selection:text-white"
+        className="font-sans h-full flex overflow-hidden bg-gray-50 text-gray-900 selection:bg-blue-500 selection:text-white"
       >
         <Providers>
           <AppLayout>{children}</AppLayout>

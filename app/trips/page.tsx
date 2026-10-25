@@ -615,16 +615,11 @@ export default function TripsPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-6">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-200">
-              <span className="h-2 w-2 rounded-full bg-blue-600"></span>
-              Hành trình & Quản lý Chuyến đi Thực tế
-            </span>
+
             <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-              Quản lý Chuyến đi & Vệt đường GPS
+              Quản lý Chuyến đi
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-gray-500">
-              Quản lý hành trình di chuyển thực tế theo đơn khách đặt (Điểm A ➔ Điểm B), đo km theo GPS và theo dõi an toàn lái xe.
-            </p>
+
           </div>
 
           <div className="flex items-center gap-3">
