@@ -134,9 +134,8 @@ function IncidentModal({ title, onClose, onSubmit, form, setForm, loading, error
                   key={s}
                   type="button"
                   onClick={() => setForm({ ...form, severity: s })}
-                  className={`rounded-lg border px-2 py-2 text-xs font-bold transition-all ${
-                    form.severity === s ? SEVERITY_COLORS[s] : "border-gray-300 bg-white text-gray-500 hover:bg-gray-100"
-                  }`}
+                  className={`rounded-lg border px-2 py-2 text-xs font-bold transition-all ${form.severity === s ? SEVERITY_COLORS[s] : "border-gray-300 bg-white text-gray-500 hover:bg-gray-100"
+                    }`}
                 >
                   {SEVERITY_LABELS[s]}
                 </button>
@@ -245,9 +244,8 @@ export default function IncidentsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 flex items-center gap-2">
-              <span className="text-red-600">⚠️</span> Quản lý Sự cố
+              Quản lý Sự cố
             </h1>
-            <p className="mt-1 text-sm text-gray-500">Ghi nhận hỏng hóc, tai nạn, sự cố thời tiết trên tuyến</p>
           </div>
           <button onClick={openCreate} className="rounded-xl bg-red-600 text-white px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-lg shadow-sm hover:bg-red-700 transition-colors">
             + Báo cáo sự cố
@@ -302,10 +300,10 @@ export default function IncidentsPage() {
                   </span>
                   <span className="text-xs text-gray-400">{formatDateTime(i.timeIncident)}</span>
                 </div>
-                
+
                 <h3 className="text-base font-bold text-gray-900 mb-1">{TYPE_LABELS[i.type]}</h3>
                 <p className="font-mono text-xs text-blue-600 mb-3 truncate" title={i.tripId}>Chuyến: {i.tripId}</p>
-                
+
                 <p className="text-sm text-gray-500 line-clamp-3 mb-4 flex-1">
                   {i.description || <span className="italic opacity-50">Không có mô tả chi tiết</span>}
                 </p>
@@ -323,7 +321,7 @@ export default function IncidentsPage() {
       {showModal && (
         <IncidentModal title={isEdit ? "Cập nhật sự cố" : "Báo cáo sự cố"} onClose={() => setShowModal(false)} onSubmit={handleSubmit} form={form} setForm={setForm} loading={modalLoading} error={modalError} isEdit={isEdit} />
       )}
-      
+
       {toast && (
         <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border px-5 py-3 text-sm font-medium shadow-2xl ${toast.type === "success" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600" : "border-red-500/30 bg-red-500/10 text-red-600"}`}>
           {toast.msg}

@@ -69,21 +69,9 @@ export default function HitlPage() {
         {/* Header banner */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-6 mb-8">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600 border border-red-200">
-                <span className="h-2 w-2 rounded-full bg-red-500 animate-ping"></span>
-                Human-in-the-Loop (HITL)
-              </span>
-              <span className="text-xs text-gray-500">
-                Chuẩn giám định vi phạm mức HIGH/CRITICAL
-              </span>
-            </div>
             <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-              Trung tâm Thẩm định Vi phạm An toàn
+              Lịch sử vi phạm
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-gray-500">
-              Kiểm duyệt các bằng chứng vi phạm do Edge AI phát hiện, xác minh độ chính xác và loại bỏ sai số.
-            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -116,8 +104,8 @@ export default function HitlPage() {
             type="button"
             onClick={() => setActiveTab("PENDING")}
             className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${activeTab === "PENDING"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               }`}
           >
             <span>Hàng đợi chờ duyệt (PENDING)</span>
@@ -132,8 +120,8 @@ export default function HitlPage() {
             type="button"
             onClick={() => setActiveTab("APPROVED")}
             className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${activeTab === "APPROVED"
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              ? "bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               }`}
           >
             <span>Đã phê duyệt (APPROVED)</span>
@@ -143,8 +131,8 @@ export default function HitlPage() {
             type="button"
             onClick={() => setActiveTab("REJECTED")}
             className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${activeTab === "REJECTED"
-                ? "bg-gray-100 text-gray-800 border border-gray-300 font-bold"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              ? "bg-gray-100 text-gray-800 border border-gray-300 font-bold"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               }`}
           >
             <span>Đã bác bỏ (REJECTED)</span>
@@ -262,10 +250,10 @@ export default function HitlPage() {
                         <td className="px-4 py-3.5 whitespace-nowrap">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${alert?.severity === "CRITICAL"
-                                ? "bg-red-50 text-red-700 border border-red-200"
-                                : alert?.severity === "HIGH"
-                                  ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                  : "bg-blue-50 text-blue-700 border border-blue-200"
+                              ? "bg-red-50 text-red-700 border border-red-200"
+                              : alert?.severity === "HIGH"
+                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                : "bg-blue-50 text-blue-700 border border-blue-200"
                               }`}
                           >
                             {alert?.severity || "MEDIUM"}

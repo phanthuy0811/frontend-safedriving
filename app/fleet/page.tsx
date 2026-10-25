@@ -110,16 +110,9 @@ export default function FleetPage() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-6 mb-8">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-200">
-              <span className="h-2 w-2 rounded-full bg-blue-600"></span>
-              Fleet Management & Live Telemetry
-            </span>
             <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-              Quản lý Đội xe & Giám sát Bản đồ Trực tuyến
+              Giám sát Bản đồ Trực tuyến
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-gray-500">
-              Bản đồ định vị GPS theo thời gian thực kết nối luồng SSE từ thiết bị Android Edge AI trên xe.
-            </p>
           </div>
 
           <button
@@ -144,51 +137,6 @@ export default function FleetPage() {
           </button>
         </div>
 
-        {/* Quick KPI Stat Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <span className="text-xs text-gray-500 block mb-1">Tổng số xe</span>
-            <div className="text-2xl sm:text-3xl font-bold font-mono text-gray-900">
-              {totalVehicles}
-            </div>
-            <span className="text-[11px] text-gray-400 mt-1 block">
-              Đăng ký trong đội xe
-            </span>
-          </div>
-
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <span className="text-xs text-gray-500 block mb-1">Đang trong ca (IN_SERVICE)</span>
-            <div className="text-2xl sm:text-3xl font-bold font-mono text-blue-600">
-              {inUseCount}
-            </div>
-            <span className="text-[11px] text-blue-600/80 mt-1 block">
-              Tài xế đang vận hành
-            </span>
-          </div>
-
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <span className="text-xs text-gray-500 block mb-1">Sẵn sàng (AVAILABLE)</span>
-            <div className="text-2xl sm:text-3xl font-bold font-mono text-emerald-600">
-              {availableCount}
-            </div>
-            <span className="text-[11px] text-emerald-600/80 mt-1 block">
-              Có thể phân công ca mới
-            </span>
-          </div>
-
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-gray-500">GPS Live SSE</span>
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            </div>
-            <div className="text-2xl sm:text-3xl font-bold font-mono text-indigo-600">
-              {liveReportingCount}
-            </div>
-            <span className="text-[11px] text-gray-400 mt-1 block">
-              Thiết bị đang phát tọa độ
-            </span>
-          </div>
-        </div>
 
         {/* Interactive Live Map Component */}
         <div className="mb-10">

@@ -489,10 +489,7 @@ export default function AssignmentsPage() {
             <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
               Quản lý Phân công
             </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Giao chuyến đi cho tài xế — mỗi phân công sẽ tự động cập nhật trạng thái chuyến sang{" "}
-              <span className="text-blue-600 font-semibold">ASSIGNED</span>
-            </p>
+
           </div>
           <button
             id="assignment-add-btn"
@@ -506,23 +503,6 @@ export default function AssignmentsPage() {
           </button>
         </div>
 
-        {/* ── Stats ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
-            <div className="text-xs font-semibold text-gray-500 mb-1">Tổng phân công</div>
-            <div className="text-3xl font-extrabold font-mono text-amber-600">{assignments.length}</div>
-          </div>
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
-            <div className="text-xs font-semibold text-gray-500 mb-1">Số tài xế được phân công</div>
-            <div className="text-3xl font-extrabold font-mono text-blue-600">{uniqueDriverIds.length}</div>
-          </div>
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
-            <div className="text-xs font-semibold text-gray-500 mb-1">Chuyến đã phân công</div>
-            <div className="text-3xl font-extrabold font-mono text-blue-600">
-              {new Set(assignments.map((a) => a.tripId)).size}
-            </div>
-          </div>
-        </div>
 
         {/* ── Search & Filter ── */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -706,11 +686,10 @@ export default function AssignmentsPage() {
       )}
 
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border px-5 py-3 shadow-2xl text-sm font-medium max-w-sm ${
-          toast.type === "success"
-            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
-            : "border-red-500/30 bg-red-500/10 text-red-600"
-        }`}>
+        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border px-5 py-3 shadow-2xl text-sm font-medium max-w-sm ${toast.type === "success"
+          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+          : "border-red-500/30 bg-red-500/10 text-red-600"
+          }`}>
           {toast.type === "success" ? (
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

@@ -325,11 +325,9 @@ export default function VehicleTypesPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
-              Quản lý Loại Phương tiện
+              Quản lý Loại xe
             </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Phân loại xe theo sức chứa và mã loại để phân công chuyến đi phù hợp
-            </p>
+
           </div>
           <button
             id="vehicle-type-add-btn"
@@ -341,26 +339,6 @@ export default function VehicleTypesPage() {
             </svg>
             Thêm loại xe
           </button>
-        </div>
-
-        {/* ── Stats ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm border-gray-200 p-5">
-            <div className="text-xs font-semibold text-gray-500 mb-1">Tổng loại xe</div>
-            <div className="text-3xl font-extrabold font-mono text-blue-600">{totalTypes}</div>
-          </div>
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm border-gray-200 p-5">
-            <div className="text-xs font-semibold text-gray-500 mb-1">Sức chứa TB</div>
-            <div className="text-3xl font-extrabold font-mono text-blue-600">
-              {avgCapacity} <span className="text-base font-semibold text-gray-400">chỗ</span>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm border-gray-200 p-5">
-            <div className="text-xs font-semibold text-gray-500 mb-1">Lớn nhất</div>
-            <div className="text-3xl font-extrabold font-mono text-emerald-600">
-              {maxCapacity} <span className="text-base font-semibold text-gray-400">chỗ</span>
-            </div>
-          </div>
         </div>
 
         {/* ── Search ── */}
@@ -498,11 +476,10 @@ export default function VehicleTypesPage() {
       {/* ── Toast ── */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border px-5 py-3 shadow-2xl text-sm font-medium ${
-            toast.type === "success"
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
-              : "border-red-500/30 bg-red-500/10 text-red-600"
-          }`}
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border px-5 py-3 shadow-2xl text-sm font-medium ${toast.type === "success"
+            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+            : "border-red-500/30 bg-red-500/10 text-red-600"
+            }`}
         >
           {toast.type === "success" ? (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

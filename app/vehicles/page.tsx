@@ -9,8 +9,10 @@ import {
   assignDriverToVehicle,
 } from "@/services/vehicle.service";
 import { getAllDrivers } from "@/services/driver.service";
+import { getAllVehicleTypes } from "@/services/vehicle-type.service";
 import { VehicleResponse, VehicleRequest, VehicleStatus } from "@/types/vehicle";
 import { DriverResponse } from "@/types/driver";
+import { VehicleTypeResponse } from "@/types/vehicle-type";
 import { ApiError } from "@/services/api.client";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -53,6 +55,7 @@ interface ModalProps {
   onSubmit: () => void;
   form: VehicleRequest;
   setForm: (f: VehicleRequest) => void;
+  vehicleTypes: VehicleTypeResponse[];
   loading: boolean;
   error: string | null;
   isEdit: boolean;
@@ -64,6 +67,7 @@ function VehicleModal({
   onSubmit,
   form,
   setForm,
+  vehicleTypes,
   loading,
   error,
   isEdit,
@@ -133,19 +137,33 @@ function VehicleModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block mb-1.5 text-xs font-semibold text-gray-500">
-                ID Loại xe <span className="text-red-600">*</span>
+                Loại xe <span className="text-red-600">*</span>
               </label>
-              <input
+              <select
                 id="vehicle-type-id"
-                type="number"
-                min={1}
-                placeholder="VD: 1"
                 value={form.vehicleTypeId || ""}
-                onChange={(e) =>
-                  setForm({ ...form, vehicleTypeId: parseInt(e.target.value) || 0 })
-                }
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-colors"
-              />
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  const selectedType = vehicleTypes.find((t) => t.id === val);
+                  setForm({
+                    ...form,
+                    vehicleTypeId: val,
+                    capacity: selectedType?.capacity !== undefined ? selectedType.capacity : form.capacity,
+                  });
+                }}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-colors"
+              >
+                <option value="">
+                  {vehicleTypes.length === 0
+                    ? "-- Không có loại xe nào --"
+                    : "-- Chọn loại xe --"}
+                </option>
+                {vehicleTypes.map((vt) => (
+                  <option key={vt.id} value={vt.id}>
+                    {vt.name} {vt.code ? `(${vt.code})` : ""}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block mb-1.5 text-xs font-semibold text-gray-500">
@@ -466,6 +484,7 @@ function AssignDriverModal({
 export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<VehicleResponse[]>([]);
   const [drivers, setDrivers] = useState<DriverResponse[]>([]);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<VehicleStatus | "ALL">("ALL");
   const [filterAssignment, setFilterAssignment] = useState<"ALL" | "ASSIGNED" | "UNASSIGNED">("ALL");
@@ -500,12 +519,14 @@ export default function VehiclesPage() {
   const fetchVehiclesAndDrivers = useCallback(async () => {
     setLoading(true);
     try {
-      const [vehiclesData, driversData] = await Promise.all([
+      const [vehiclesData, driversData, typesData] = await Promise.all([
         getAllVehicles(),
         getAllDrivers().catch(() => []),
+        getAllVehicleTypes().catch(() => []),
       ]);
       setVehicles(vehiclesData);
       setDrivers(driversData);
+      setVehicleTypes(typesData);
     } catch {
       showToast("Không thể tải danh sách phương tiện.", "error");
     } finally {
@@ -593,7 +614,7 @@ export default function VehiclesPage() {
       return;
     }
     if (!form.vehicleTypeId || form.vehicleTypeId < 1) {
-      setModalError("Vui lòng nhập ID loại xe hợp lệ.");
+      setModalError("Vui lòng chọn loại xe.");
       return;
     }
 
@@ -652,13 +673,8 @@ export default function VehiclesPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
-              Quản lý Phương tiện
+              Quản lý xe
             </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Tổng cộng <span className="font-semibold text-blue-600">{vehicles.length}</span> xe trong đội
-              {" "}• <span className="text-emerald-600 font-semibold">{assignedCount}</span> đã gán tài xế
-              {" "}• <span className="text-amber-600 font-semibold">{unassignedCount}</span> chưa gán
-            </p>
           </div>
           <button
             id="vehicle-add-btn"
@@ -670,34 +686,6 @@ export default function VehiclesPage() {
             </svg>
             Thêm xe mới
           </button>
-        </div>
-
-        {/* ── Status Stats ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          {stats.map(({ status, count }) => (
-            <button
-              key={status}
-              id={`vehicle-filter-${status.toLowerCase()}`}
-              onClick={() =>
-                setFilterStatus(filterStatus === status ? "ALL" : status)
-              }
-              className={`rounded-2xl border p-4 text-left transition-all hover:scale-[1.02] ${filterStatus === status
-                  ? "border-blue-200 bg-blue-50 text-blue-700 ring-1 ring-blue-500/20"
-                  : "border-gray-200 bg-white shadow-sm"
-                }`}
-            >
-              <div className="text-2xl font-extrabold font-mono text-gray-900">
-                {count}
-              </div>
-              <div className="mt-1">
-                <span
-                  className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold ${STATUS_COLORS[status]}`}
-                >
-                  {STATUS_LABELS[status]}
-                </span>
-              </div>
-            </button>
-          ))}
         </div>
 
         {/* ── Search & Filter bar ── */}
@@ -896,6 +884,7 @@ export default function VehiclesPage() {
           onSubmit={handleSubmit}
           form={form}
           setForm={setForm}
+          vehicleTypes={vehicleTypes}
           loading={modalLoading}
           error={modalError}
           isEdit={isEdit}
@@ -926,8 +915,8 @@ export default function VehiclesPage() {
       {toast && (
         <div
           className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border px-5 py-3 shadow-2xl text-sm font-medium transition-all animate-in slide-in-from-bottom-2 ${toast.type === "success"
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
-              : "border-red-500/30 bg-red-500/10 text-red-600"
+            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+            : "border-red-500/30 bg-red-500/10 text-red-600"
             }`}
         >
           {toast.type === "success" ? (

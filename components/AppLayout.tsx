@@ -18,8 +18,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         // Chưa đăng nhập mà truy cập trang quản trị -> chuyển hướng về /login
         router.replace("/login");
       } else if (isAuthenticated && isAuthPage) {
-        // Đã đăng nhập rồi mà vẫn ở trang /login hoặc /register -> chuyển hướng về dashboard /
-        router.replace("/");
+        // Đã đăng nhập rồi mà vẫn ở trang /login hoặc /register -> chuyển hướng về /fleet
+        router.replace("/fleet");
       }
     }
   }, [isAuthenticated, isLoading, isAuthPage, router]);

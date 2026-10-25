@@ -39,7 +39,7 @@ export default function LoginPage() {
       const response = await loginApi(formData);
       if (response.data) {
         login(response.data);
-        router.push("/");
+        router.push("/fleet");
       } else {
         setErrorMessage(response.message || "Đăng nhập không thành công.");
       }
