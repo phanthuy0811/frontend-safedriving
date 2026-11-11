@@ -64,6 +64,11 @@ function toLocalDateTime(dtLocal: string): string {
   return dtLocal.length === 16 ? `${dtLocal}:00` : dtLocal;
 }
 
+function getLocalIsoDateTime(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const now = new Date();
 const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
 
@@ -72,8 +77,8 @@ const EMPTY_FORM: TripRequest = {
   endLocation: "",
   vehicleId: "",
   driverId: "",
-  plannedStartTime: toLocalDateTime(now.toISOString().slice(0, 16)),
-  plannedEndTime: toLocalDateTime(inOneHour.toISOString().slice(0, 16)),
+  plannedStartTime: `${getLocalIsoDateTime(now)}:00`,
+  plannedEndTime: `${getLocalIsoDateTime(inOneHour)}:00`,
   status: "PLANNED",
   distanceKm: 0,
   note: "",
