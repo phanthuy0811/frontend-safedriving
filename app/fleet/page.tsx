@@ -40,16 +40,27 @@ const LiveFleetMap = dynamic(
 
 const DEFAULT_SEED_VEHICLES: VehicleResponse[] = [
   {
-    id: "f8a12345-0000-0000-0000-000000000001",
-    vehicleTypeId: 1, plateNumber: "30G-456.78",
+    id: "58591121-1660-44c0-9ca6-94eeff2b3d5b",
+    vehicleTypeId: 1,
+    plateNumber: "30F-13579",
     status: "IN_SERVICE",
     assignedDriverName: "Nguyễn Văn A (App Mobile)",
+    vehicleTypeName: "VinFast VF8 Eco (Xe Thử Nghiệm)",
+    odometerKm: 15420,
+  },
+  {
+    id: "f8a12345-0000-0000-0000-000000000001",
+    vehicleTypeId: 1,
+    plateNumber: "30G-456.78",
+    status: "IN_SERVICE",
+    assignedDriverName: "Phạm Hải Đăng",
     vehicleTypeName: "VinFast VF8 Eco (Điện)",
     odometerKm: 12540,
   },
   {
     id: "f8a12345-0000-0000-0000-000000000002",
-    vehicleTypeId: 2, plateNumber: "29A-888.99",
+    vehicleTypeId: 2,
+    plateNumber: "29A-888.99",
     status: "AVAILABLE",
     assignedDriverName: "Trần Tuấn Tài",
     vehicleTypeName: "Toyota HiAce 16 chỗ",
@@ -57,7 +68,8 @@ const DEFAULT_SEED_VEHICLES: VehicleResponse[] = [
   },
   {
     id: "f8a12345-0000-0000-0000-000000000003",
-    vehicleTypeId: 3, plateNumber: "51B-123.45",
+    vehicleTypeId: 3,
+    plateNumber: "51B-123.45",
     status: "IN_SERVICE",
     assignedDriverName: "Lê Hoàng Minh",
     vehicleTypeName: "Hyundai Universe 45 chỗ",
