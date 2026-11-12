@@ -15,6 +15,10 @@ export interface IncidentResponse {
   type: IncidentType;
   description?: string;
   severity: IncidentSeverity;
+  // Thông tin chuyến đi
+  tripStartLocation?: string;
+  tripEndLocation?: string;
+  tripPlannedStartTime?: string;
 }
 
 // Sync với IncidentRequest BE

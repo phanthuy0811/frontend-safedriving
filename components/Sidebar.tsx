@@ -89,14 +89,8 @@ export default function Sidebar() {
                 }`}
             >
               <div className="flex items-center gap-3">
-
                 <span>Lịch sử vi phạm</span>
               </div>
-              {pendingHitlCount > 0 && (
-                <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-red-100 text-red-600 border border-red-200">
-                  {pendingHitlCount}
-                </span>
-              )}
             </Link>
 
             <Link

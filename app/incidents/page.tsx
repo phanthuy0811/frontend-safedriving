@@ -51,9 +51,14 @@ function toLocalDateTime(dtLocal: string): string {
   return dtLocal.length === 16 ? `${dtLocal}:00` : dtLocal;
 }
 
+function getLocalIsoDateTime(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const EMPTY_FORM: IncidentRequest = {
   tripId: "",
-  timeIncident: toLocalDateTime(new Date().toISOString().slice(0, 16)),
+  timeIncident: `${getLocalIsoDateTime(new Date())}:00`,
   type: "BREAKDOWN",
   severity: "MEDIUM",
   description: "",
@@ -202,12 +207,13 @@ export default function IncidentsPage() {
   const filtered = incidents.filter((i) => {
     const matchSev = filterSeverity === "ALL" || i.severity === filterSeverity;
     const q = searchTerm.toLowerCase();
-    const matchSearch = !q || i.tripId.toLowerCase().includes(q) || (i.description?.toLowerCase() || "").includes(q);
+    const tripLabel = [i.tripStartLocation, i.tripEndLocation].filter(Boolean).join(" → ").toLowerCase();
+    const matchSearch = !q || tripLabel.includes(q) || (i.description?.toLowerCase() || "").includes(q);
     return matchSev && matchSearch;
   });
 
   const openCreate = () => {
-    setForm({ ...EMPTY_FORM, timeIncident: toLocalDateTime(new Date().toISOString().slice(0, 16)) });
+    setForm({ ...EMPTY_FORM, timeIncident: `${getLocalIsoDateTime(new Date())}:00` });
     setIsEdit(false); setEditingId(null); setModalError(null); setShowModal(true);
   };
 
@@ -260,7 +266,7 @@ export default function IncidentsPage() {
             </svg>
             <input
               type="text"
-              placeholder="Tìm theo ID chuyến đi hoặc mô tả..."
+              placeholder="Tìm theo tên chuyến đi hoặc mô tả..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
@@ -302,7 +308,18 @@ export default function IncidentsPage() {
                 </div>
 
                 <h3 className="text-base font-bold text-gray-900 mb-1">{TYPE_LABELS[i.type]}</h3>
-                <p className="font-mono text-xs text-blue-600 mb-3 truncate" title={i.tripId}>Chuyến: {i.tripId}</p>
+                <div className="mb-3">
+                  <p className="text-xs font-semibold text-blue-700 truncate">
+                    {i.tripStartLocation && i.tripEndLocation
+                      ? `${i.tripStartLocation} → ${i.tripEndLocation}`
+                      : "Chuyến đi không xác định"}
+                  </p>
+                  {i.tripPlannedStartTime && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      🕐 {formatDateTime(i.tripPlannedStartTime)}
+                    </p>
+                  )}
+                </div>
 
                 <p className="text-sm text-gray-500 line-clamp-3 mb-4 flex-1">
                   {i.description || <span className="italic opacity-50">Không có mô tả chi tiết</span>}
