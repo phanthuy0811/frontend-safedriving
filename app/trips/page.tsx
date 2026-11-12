@@ -179,7 +179,7 @@ function TripModal({
                     const startDt = new Date(form.plannedStartTime);
                     if (!isNaN(startDt.getTime())) {
                       const endDt = new Date(startDt.getTime() + foundRoute.standardDurationMin * 60 * 1000);
-                      newPlannedEndTime = toLocalDateTime(endDt.toISOString().slice(0, 16));
+                      newPlannedEndTime = toLocalDateTime(getLocalIsoDateTime(endDt));
                     }
                   }
 
@@ -286,12 +286,23 @@ function TripModal({
               <input
                 type="datetime-local"
                 value={toDateTimeLocal(form.plannedStartTime)}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const newStartTime = toLocalDateTime(e.target.value);
+                  let newEndTime = form.plannedEndTime;
+                  const currentRoute = activeRoutes.find((r) => r.id === form.routeId);
+                  if (currentRoute?.standardDurationMin && newStartTime) {
+                    const startDt = new Date(newStartTime);
+                    if (!isNaN(startDt.getTime())) {
+                      const endDt = new Date(startDt.getTime() + currentRoute.standardDurationMin * 60 * 1000);
+                      newEndTime = toLocalDateTime(getLocalIsoDateTime(endDt));
+                    }
+                  }
                   setForm({
                     ...form,
-                    plannedStartTime: toLocalDateTime(e.target.value),
-                  })
-                }
+                    plannedStartTime: newStartTime,
+                    plannedEndTime: newEndTime,
+                  });
+                }}
                 className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
               />
             </div>

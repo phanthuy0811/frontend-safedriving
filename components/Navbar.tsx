@@ -16,9 +16,7 @@ export default function Navbar() {
     { href: "/", label: "Tổng quan", icon: "dashboard" },
     {
       href: "/hitl",
-      label: "Kiểm duyệt HITL",
-      badge: pendingHitlCount > 0 ? pendingHitlCount : undefined,
-      badgeColor: "bg-red-500",
+      label: "Lịch sử vi phạm",
     },
     { href: "/fleet", label: "Đội xe & Vị trí" },
   ];

@@ -2,11 +2,8 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import HitlReviewModal from "@/components/hitl/HitlReviewModal";
-import { useAuth } from "@/context/AuthContext";
-import { useRealtime } from "@/context/RealtimeContext";
-import { getHitlQueue } from "@/services/hitl.service";
-import { HitlCaseResponse, HitlStatus } from "@/types/hitl";
-import Link from "next/link";
+import { getHitlQueue, clearAllHitlCases } from "@/services/hitl.service";
+import { HitlCaseResponse } from "@/types/hitl";
 
 const ALERT_TYPE_LABELS: Record<string, string> = {
   DROWSINESS: "Ngủ gật",
@@ -18,30 +15,25 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function HitlPage() {
-  const { isAuthenticated } = useAuth();
-  const { pendingHitlCount, refreshPendingCount } = useRealtime();
-
-  const [activeTab, setActiveTab] = useState<HitlStatus>("PENDING");
   const [cases, setCases] = useState<HitlCaseResponse[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedCase, setSelectedCase] = useState<HitlCaseResponse | null>(
-    null
-  );
+  const [isClearing, setIsClearing] = useState(false);
+  const [selectedCase, setSelectedCase] = useState<HitlCaseResponse | null>(null);
 
   const fetchCases = useCallback(
-    async (targetStatus: HitlStatus, targetPage: number = 0) => {
+    async (targetPage: number = 0) => {
       setIsLoading(true);
       try {
-        const response = await getHitlQueue(targetStatus, targetPage, 10);
+        const response = await getHitlQueue(undefined, targetPage, 10);
         setCases(response.content || []);
         setTotalPages(response.totalPages || 1);
         setTotalElements(response.totalElements || 0);
         setPage(response.number || 0);
       } catch (err) {
-        console.error("Lỗi tải danh sách HITL:", err);
+        console.error("Lỗi tải danh sách vi phạm:", err);
         setCases([]);
       } finally {
         setIsLoading(false);
@@ -51,16 +43,22 @@ export default function HitlPage() {
   );
 
   useEffect(() => {
-    fetchCases(activeTab, 0);
-  }, [activeTab, fetchCases]);
+    fetchCases(0);
+  }, [fetchCases]);
 
-  const handleReviewed = (updatedCase: HitlCaseResponse) => {
-    // If we're on PENDING tab, remove it or replace it
-    setCases((prev) =>
-      prev.map((c) => (c.id === updatedCase.id ? updatedCase : c))
-    );
-    refreshPendingCount();
-    fetchCases(activeTab, page);
+  const handleClearAll = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa sạch toàn bộ dữ liệu lịch sử vi phạm cũ để test dữ liệu mới không?")) {
+      return;
+    }
+    setIsClearing(true);
+    try {
+      await clearAllHitlCases();
+      await fetchCases(0);
+    } catch (err) {
+      alert("Không thể xóa dữ liệu: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsClearing(false);
+    }
   };
 
   return (
@@ -72,12 +70,27 @@ export default function HitlPage() {
             <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
               Lịch sử vi phạm
             </h1>
+            <p className="mt-1 text-xs text-gray-500">
+              Nhật ký vi phạm và cảnh báo an toàn được camera AI tự động ghi nhận trực tiếp từ App
+            </p>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => fetchCases(activeTab, page)}
+              disabled={isClearing}
+              onClick={handleClearAll}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 shadow-sm transition-colors disabled:opacity-50"
+            >
+              <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              {isClearing ? "Đang xóa..." : "Xóa dữ liệu cũ"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => fetchCases(page)}
               className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 shadow-sm transition-colors"
             >
               <svg
@@ -98,61 +111,7 @@ export default function HitlPage() {
           </div>
         </div>
 
-        {/* Tab Filters */}
-        <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-6">
-          <button
-            type="button"
-            onClick={() => setActiveTab("PENDING")}
-            className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${activeTab === "PENDING"
-              ? "bg-blue-600 text-white shadow-sm"
-              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
-          >
-            <span>Hàng đợi chờ duyệt (PENDING)</span>
-            {pendingHitlCount > 0 && (
-              <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white animate-pulse">
-                {pendingHitlCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("APPROVED")}
-            className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${activeTab === "APPROVED"
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold"
-              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
-          >
-            <span>Đã phê duyệt (APPROVED)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("REJECTED")}
-            className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${activeTab === "REJECTED"
-              ? "bg-gray-100 text-gray-800 border border-gray-300 font-bold"
-              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
-          >
-            <span>Đã bác bỏ (REJECTED)</span>
-          </button>
-        </div>
-
-        {/* Not authenticated warning banner */}
-        {!isAuthenticated && (
-          <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-800 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 flex-shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span>Bạn cần đăng nhập với vai trò <strong>MANAGER</strong> hoặc <strong>ADMIN</strong> để gửi quyết định kiểm duyệt vi phạm.</span>
-            </div>
-            <Link href="/login" className="font-bold underline ml-2 text-amber-900">Đăng nhập</Link>
-          </div>
-        )}
-
-        {/* Content Table or Cards */}
+        {/* Content Table or Empty State */}
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <svg
@@ -174,13 +133,13 @@ export default function HitlPage() {
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-            <p className="text-xs text-gray-500">Đang đồng bộ hàng đợi vi phạm...</p>
+            <p className="text-xs text-gray-500">Đang đồng bộ danh sách vi phạm...</p>
           </div>
         ) : cases.length === 0 ? (
           <div className="rounded-3xl border border-gray-200 bg-white p-12 text-center shadow-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200 mb-4">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 mb-4">
               <svg
-                className="h-8 w-8"
+                className="h-7 w-7"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -193,13 +152,11 @@ export default function HitlPage() {
                 />
               </svg>
             </div>
-            <h3 className="text-base font-bold text-gray-900">
-              Hàng đợi trống
-            </h3>
-            <p className="mt-1 text-xs text-gray-500 max-w-sm mx-auto">
-              {activeTab === "PENDING"
-                ? "Không có vi phạm an toàn nào cần kiểm duyệt. Tất cả tài xế và phương tiện đang hoạt động bình thường!"
-                : "Không tìm thấy bản ghi nào trong mục này."}
+            <p className="text-sm font-medium text-gray-900 mb-1">
+              Chưa có vi phạm nào được ghi nhận
+            </p>
+            <p className="text-xs text-gray-500 max-w-sm mx-auto">
+              Hệ thống sẽ tự động cập nhật khi camera AI trên App phát hiện vi phạm của tài xế.
             </p>
           </div>
         ) : (
@@ -319,7 +276,7 @@ export default function HitlPage() {
                             onClick={() => setSelectedCase(c)}
                             className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all"
                           >
-                            <span>Thẩm định</span>
+                            <span>Xem chi tiết</span>
                             <svg
                               className="w-3.5 h-3.5"
                               fill="none"
@@ -351,7 +308,7 @@ export default function HitlPage() {
                 <button
                   type="button"
                   disabled={page === 0}
-                  onClick={() => fetchCases(activeTab, page - 1)}
+                  onClick={() => fetchCases(page - 1)}
                   className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-40 shadow-sm"
                 >
                   Trang trước
@@ -362,7 +319,7 @@ export default function HitlPage() {
                 <button
                   type="button"
                   disabled={page >= totalPages - 1}
-                  onClick={() => fetchCases(activeTab, page + 1)}
+                  onClick={() => fetchCases(page + 1)}
                   className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-40 shadow-sm"
                 >
                   Trang sau
@@ -373,11 +330,10 @@ export default function HitlPage() {
         )}
       </main>
 
-      {/* Review Modal Dialog */}
+      {/* Detail Modal Dialog */}
       <HitlReviewModal
         hitlCase={selectedCase}
         onClose={() => setSelectedCase(null)}
-        onReviewed={handleReviewed}
       />
     </div>
   );

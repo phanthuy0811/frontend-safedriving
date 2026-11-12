@@ -66,21 +66,48 @@ function AssignmentModal({
     return t.status === "PLANNED";
   });
 
-  // 2. Chỉ lấy tài xế đang rảnh (hoạt động, chưa có phân công nào, không bận chuyến)
+  const selectedTrip = trips.find((t) => t.id === form.tripId);
+  const selectedDriver = drivers.find((d) => d.id === form.driverId);
+
+  // 2. Lấy tài xế khả dụng (đang hoạt động và không bị trùng lịch với chuyến đi đang chọn)
   const availableDrivers = drivers.filter((d) => {
     if (d.isActive === false) return false;
     if (isEdit && d.id === form.driverId) return true;
-    const hasAssignment = assignments?.some((a) => a.driverId === d.id);
-    if (hasAssignment) return false;
-    const hasActiveTrip = trips.some(
-      (t) => t.driverId === d.id && (t.status === "IN_PROGRESS" || t.status === "ASSIGNED")
-    );
-    if (hasActiveTrip) return false;
+
+    // Nếu đã chọn chuyến đi và chuyến đi có khoảng thời gian dự kiến:
+    // Kiểm tra xem tài xế có chuyến đi nào khác (đang phân công / đang chạy) bị trùng thời gian không
+    if (selectedTrip?.plannedStartTime && selectedTrip?.plannedEndTime) {
+      const newStart = new Date(selectedTrip.plannedStartTime).getTime();
+      const newEnd = new Date(selectedTrip.plannedEndTime).getTime();
+
+      if (!isNaN(newStart) && !isNaN(newEnd)) {
+        const hasTimeConflict = trips.some((t) => {
+          if (t.id === selectedTrip.id) return false;
+          // Bỏ qua các chuyến đã hoàn thành, đã huỷ hoặc chưa phân công
+          if (t.status === "COMPLETED" || t.status === "CANCELLED" || t.status === "PLANNED") return false;
+
+          // Kiểm tra chuyến này có thuộc về tài xế d không
+          const isAssignedToThisDriver =
+            t.driverId === d.id ||
+            assignments?.some((a) => a.driverId === d.id && a.tripId === t.id);
+
+          if (!isAssignedToThisDriver) return false;
+
+          if (!t.plannedStartTime || !t.plannedEndTime) return false;
+          const tStart = new Date(t.plannedStartTime).getTime();
+          const tEnd = new Date(t.plannedEndTime).getTime();
+          if (isNaN(tStart) || isNaN(tEnd)) return false;
+
+          // Trùng lịch khi: newStart < tEnd && newEnd > tStart
+          return newStart < tEnd && newEnd > tStart;
+        });
+
+        if (hasTimeConflict) return false;
+      }
+    }
+
     return true;
   });
-
-  const selectedTrip = trips.find((t) => t.id === form.tripId);
-  const selectedDriver = drivers.find((d) => d.id === form.driverId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
