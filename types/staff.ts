@@ -12,31 +12,33 @@ export interface StaffAccountInfo {
 }
 
 export interface StaffRequest {
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string; // format: date (yyyy-MM-dd)
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string; // format: date (yyyy-MM-dd)
   gender?: "MALE" | "FEMALE" | "OTHER";
   email?: string;
-  phone: string;
+  phone?: string;
   exactAddress?: string;
   commune?: string;
   province?: string;
   accountId?: string;
   account?: IdReference;
+  isActive?: boolean;
 }
 
 export interface StaffResponse {
   id: string;
-  firstName: string;
-  lastName: string;
-  fullName: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
   dateOfBirth?: string;
   gender?: "MALE" | "FEMALE" | "OTHER";
   email?: string;
-  phone: string;
+  phone?: string;
   exactAddress?: string;
   commune?: string;
   province?: string;
+  isActive?: boolean;
   account?: StaffAccountInfo;
   createdAt?: string;
 }
