@@ -688,6 +688,37 @@ export default function VehiclesPage() {
           </button>
         </div>
 
+        {/* ── Status Pills ── */}
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          <button
+            onClick={() => setFilterStatus("ALL")}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium border transition-all ${
+              filterStatus === "ALL"
+                ? "bg-gray-900 text-white border-gray-900 shadow-sm"
+                : "bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:text-gray-900"
+            }`}
+          >
+            Tất cả ({vehicles.length})
+          </button>
+          {ALL_STATUSES.map((s) => {
+            const count = vehicles.filter((v) => v.status === s).length;
+            const isActive = filterStatus === s;
+            return (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium border transition-all ${
+                  isActive
+                    ? "bg-gray-900 text-white border-gray-900 shadow-sm"
+                    : "bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:text-gray-900"
+                }`}
+              >
+                {STATUS_LABELS[s]} ({count})
+              </button>
+            );
+          })}
+        </div>
+
         {/* ── Search & Filter bar ── */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <div className="relative flex-1">
@@ -721,21 +752,6 @@ export default function VehiclesPage() {
             <option value="ALL">Tất cả phương tiện</option>
             <option value="ASSIGNED">Đã gán tài xế ({assignedCount})</option>
             <option value="UNASSIGNED">Chưa gán tài xế ({unassignedCount})</option>
-          </select>
-          <select
-            id="vehicle-status-filter"
-            value={filterStatus}
-            onChange={(e) =>
-              setFilterStatus(e.target.value as VehicleStatus | "ALL")
-            }
-            className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none transition-colors"
-          >
-            <option value="ALL">Tất cả trạng thái</option>
-            {ALL_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABELS[s]}
-              </option>
-            ))}
           </select>
         </div>
 

@@ -7,7 +7,9 @@ import {
   updateIncident,
   deleteIncident,
 } from "@/services/incident.service";
+import { getAllTrips } from "@/services/trip.service";
 import { IncidentResponse, IncidentRequest, IncidentType, IncidentSeverity } from "@/types/incident";
+import { TripResponse } from "@/types/trip";
 import { ApiError } from "@/services/api.client";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -56,6 +58,12 @@ function getLocalIsoDateTime(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function tripLabel(t: TripResponse): string {
+  const route = t.routeName || (t.startLocation && t.endLocation ? `${t.startLocation} → ${t.endLocation}` : `Chuyến #${t.id.slice(0, 8)}`);
+  const time = t.plannedStartTime ? ` (${formatDateTime(t.plannedStartTime)})` : "";
+  return `${route}${time}`;
+}
+
 const EMPTY_FORM: IncidentRequest = {
   tripId: "",
   timeIncident: `${getLocalIsoDateTime(new Date())}:00`,
@@ -72,12 +80,14 @@ interface ModalProps {
   onSubmit: () => void;
   form: IncidentRequest;
   setForm: (f: IncidentRequest) => void;
+  trips: TripResponse[];
   loading: boolean;
   error: string | null;
   isEdit: boolean;
+  editingIncident?: IncidentResponse;
 }
 
-function IncidentModal({ title, onClose, onSubmit, form, setForm, loading, error, isEdit }: ModalProps) {
+function IncidentModal({ title, onClose, onSubmit, form, setForm, trips, loading, error, isEdit, editingIncident }: ModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-transparent/80 backdrop-blur-sm" onClick={onClose} />
@@ -94,16 +104,31 @@ function IncidentModal({ title, onClose, onSubmit, form, setForm, loading, error
         <div className="px-6 py-5 space-y-4 overflow-y-auto">
           {error && <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-600">{error}</div>}
 
-          {/* Trip ID */}
+          {/* Chọn chuyến đi (dropdown khi tạo mới, read-only khi sửa) */}
           <div>
-            <label className="block mb-1.5 text-xs font-semibold text-gray-500">ID Chuyến đi <span className="text-red-600">*</span></label>
-            <input
-              type="text"
-              placeholder="UUID của chuyến đi gặp sự cố"
-              value={form.tripId}
-              onChange={(e) => setForm({ ...form, tripId: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/20 transition-colors font-mono"
-            />
+            <label className="block mb-1.5 text-xs font-semibold text-gray-500">Chuyến đi <span className="text-red-600">*</span></label>
+            {isEdit ? (
+              <div className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700 font-medium">
+                {(() => {
+                  const tripFromList = trips.find((t) => t.id === form.tripId);
+                  if (tripFromList) return tripLabel(tripFromList);
+                  if (editingIncident?.tripStartLocation && editingIncident?.tripEndLocation)
+                    return `${editingIncident.tripStartLocation} → ${editingIncident.tripEndLocation}`;
+                  return `Chuyến #${form.tripId.slice(0, 8)}…`;
+                })()}
+              </div>
+            ) : (
+              <select
+                value={form.tripId}
+                onChange={(e) => setForm({ ...form, tripId: e.target.value })}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/20 transition-colors"
+              >
+                <option value="">-- Chọn chuyến đi --</option>
+                {trips.map((t) => (
+                  <option key={t.id} value={t.id}>{tripLabel(t)}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -114,7 +139,7 @@ function IncidentModal({ title, onClose, onSubmit, form, setForm, loading, error
                 type="datetime-local"
                 value={toDateTimeLocal(form.timeIncident)}
                 onChange={(e) => setForm({ ...form, timeIncident: toLocalDateTime(e.target.value) })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/20 transition-colors "
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/20 transition-colors"
               />
             </div>
             {/* Type */}
@@ -139,8 +164,7 @@ function IncidentModal({ title, onClose, onSubmit, form, setForm, loading, error
                   key={s}
                   type="button"
                   onClick={() => setForm({ ...form, severity: s })}
-                  className={`rounded-lg border px-2 py-2 text-xs font-bold transition-all ${form.severity === s ? SEVERITY_COLORS[s] : "border-gray-300 bg-white text-gray-500 hover:bg-gray-100"
-                    }`}
+                  className={`rounded-lg border px-2 py-2 text-xs font-bold transition-all ${form.severity === s ? SEVERITY_COLORS[s] : "border-gray-300 bg-white text-gray-500 hover:bg-gray-100"}`}
                 >
                   {SEVERITY_LABELS[s]}
                 </button>
@@ -167,7 +191,7 @@ function IncidentModal({ title, onClose, onSubmit, form, setForm, loading, error
           <button
             onClick={onSubmit}
             disabled={loading}
-            className="rounded-lg bg-red-600 text-white px-5 py-2 text-sm font-semibold text-gray-900 hover:bg-red-700 disabled:opacity-50 transition-colors"
+            className="rounded-lg bg-red-600 text-white px-5 py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
           >
             {loading ? "Đang xử lý..." : isEdit ? "Cập nhật" : "Báo cáo sự cố"}
           </button>
@@ -181,6 +205,7 @@ function IncidentModal({ title, onClose, onSubmit, form, setForm, loading, error
 
 export default function IncidentsPage() {
   const [incidents, setIncidents] = useState<IncidentResponse[]>([]);
+  const [trips, setTrips] = useState<TripResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSeverity, setFilterSeverity] = useState<IncidentSeverity | "ALL">("ALL");
@@ -188,6 +213,7 @@ export default function IncidentsPage() {
   const [showModal, setShowModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingIncident, setEditingIncident] = useState<IncidentResponse | undefined>(undefined);
   const [form, setForm] = useState<IncidentRequest>(EMPTY_FORM);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -195,20 +221,28 @@ export default function IncidentsPage() {
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const showToast = (msg: string, type: "success" | "error") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
-  const fetchIncidents = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    try { setIncidents(await getAllIncidents()); }
-    catch { showToast("Lỗi khi tải danh sách sự cố", "error"); }
+    try {
+      const [incidentsData, tripsData] = await Promise.all([getAllIncidents(), getAllTrips().catch(() => [])]);
+      setIncidents(incidentsData);
+      setTrips(tripsData);
+    } catch { showToast("Lỗi khi tải danh sách sự cố", "error"); }
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchIncidents(); }, [fetchIncidents]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const filtered = incidents.filter((i) => {
     const matchSev = filterSeverity === "ALL" || i.severity === filterSeverity;
     const q = searchTerm.toLowerCase();
-    const tripLabel = [i.tripStartLocation, i.tripEndLocation].filter(Boolean).join(" → ").toLowerCase();
-    const matchSearch = !q || tripLabel.includes(q) || (i.description?.toLowerCase() || "").includes(q);
+    const tripInfo = trips.find((t) => t.id === i.tripId);
+    const searchable = [
+      i.tripStartLocation, i.tripEndLocation,
+      tripInfo?.routeName, tripInfo?.startLocation, tripInfo?.endLocation,
+      i.description,
+    ].filter(Boolean).join(" ").toLowerCase();
+    const matchSearch = !q || searchable.includes(q);
     return matchSev && matchSearch;
   });
 
@@ -219,124 +253,188 @@ export default function IncidentsPage() {
 
   const openEdit = (i: IncidentResponse) => {
     setForm({ tripId: i.tripId, timeIncident: i.timeIncident, type: i.type, severity: i.severity, description: i.description });
-    setIsEdit(true); setEditingId(i.id); setModalError(null); setShowModal(true);
+    setIsEdit(true); setEditingId(i.id); setEditingIncident(i); setModalError(null); setShowModal(true);
   };
 
   const handleSubmit = async () => {
-    if (!form.tripId.trim()) { setModalError("ID chuyến đi không được để trống."); return; }
+    if (!form.tripId.trim()) { setModalError("Vui lòng chọn chuyến đi."); return; }
     if (!form.timeIncident) { setModalError("Chưa chọn thời gian sự cố."); return; }
 
     setModalLoading(true); setModalError(null);
     try {
       if (isEdit && editingId) { await updateIncident(editingId, form); showToast("Đã cập nhật sự cố!", "success"); }
       else { await createIncident(form); showToast("Đã báo cáo sự cố thành công!", "success"); }
-      setShowModal(false); fetchIncidents();
+      setShowModal(false); fetchData();
     } catch (err) { setModalError(err instanceof ApiError ? err.message : "Đã xảy ra lỗi."); }
     finally { setModalLoading(false); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Bạn có chắc muốn xoá báo cáo này? Hành động này không thể hoàn tác.")) return;
-    try {
-      await deleteIncident(id);
-      showToast("Đã xoá báo cáo", "success");
-      fetchIncidents();
-    } catch (err) { showToast(err instanceof ApiError ? err.message : "Xoá thất bại", "error"); }
+    try { await deleteIncident(id); showToast("Đã xoá báo cáo", "success"); fetchData(); }
+    catch (err) { showToast(err instanceof ApiError ? err.message : "Xoá thất bại", "error"); }
   };
 
   return (
     <div className="flex flex-col h-full bg-transparent text-gray-900">
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 flex items-center gap-2">
-              Quản lý Sự cố
-            </h1>
-          </div>
-          <button onClick={openCreate} className="rounded-xl bg-red-600 text-white px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-lg shadow-sm hover:bg-red-700 transition-colors">
-            + Báo cáo sự cố
+          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">Quản lý Sự cố</h1>
+          <button onClick={openCreate} className="inline-flex items-center gap-2 rounded-xl bg-red-600 text-white px-5 py-2.5 text-sm font-semibold shadow-sm hover:bg-red-700 transition-colors active:scale-95">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Báo cáo sự cố
           </button>
         </div>
 
-        {/* ── Stats & Filters ── */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1 relative">
+        {/* ── Severity Pills ── */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {([["ALL", "Tất cả"], ...Object.entries(SEVERITY_LABELS)] as [string, string][]).map(([key, label]) => {
+            const count = key === "ALL" ? incidents.length : incidents.filter((i) => i.severity === key).length;
+            const isActive = filterSeverity === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setFilterSeverity(key as IncidentSeverity | "ALL")}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium border transition-all ${
+                  isActive
+                    ? key === "ALL"
+                      ? "bg-gray-900 text-white border-gray-900 shadow-sm"
+                      : SEVERITY_COLORS[key as IncidentSeverity] + " shadow-sm font-bold"
+                    : "bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:text-gray-900"
+                }`}
+              >
+                {label}
+                <span className={`text-xs rounded-full px-1.5 py-0.5 font-semibold ${isActive ? "bg-white/20" : "bg-gray-100 text-gray-500"}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Search ── */}
+        <div className="mb-6">
+          <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
               type="text"
-              placeholder="Tìm theo tên chuyến đi hoặc mô tả..."
+              placeholder="Tìm theo tên chuyến đi, lộ trình hoặc mô tả..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-            <button
-              onClick={() => setFilterSeverity("ALL")}
-              className={`shrink-0 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${filterSeverity === "ALL" ? "border-slate-500 bg-white text-gray-900" : "border-gray-200 bg-white border-gray-200 text-gray-500 hover:bg-white"}`}
-            >
-              Tất cả
-            </button>
-            {(Object.keys(SEVERITY_LABELS) as IncidentSeverity[]).map((s) => (
-              <button
-                key={s}
-                onClick={() => setFilterSeverity(s)}
-                className={`shrink-0 rounded-lg border px-4 py-2 text-sm font-bold transition-all ${filterSeverity === s ? SEVERITY_COLORS[s] : "border-gray-200 bg-white border-gray-200 text-gray-400 hover:bg-white"}`}
-              >
-                {SEVERITY_LABELS[s]}
-              </button>
-            ))}
-          </div>
         </div>
 
-        {/* ── List / Grid ── */}
-        {loading ? (
-          <div className="py-20 text-center text-gray-500 text-sm">Đang tải dữ liệu...</div>
-        ) : filtered.length === 0 ? (
-          <div className="py-20 text-center text-gray-400 text-sm">Không có sự cố nào phù hợp.</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((i) => (
-              <div key={i.id} className="group relative flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm border-gray-200 p-5 hover:border-red-300 transition-colors">
-                <div className="flex justify-between items-start mb-3">
-                  <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${SEVERITY_COLORS[i.severity]}`}>
-                    {SEVERITY_LABELS[i.severity]}
-                  </span>
-                  <span className="text-xs text-gray-400">{formatDateTime(i.timeIncident)}</span>
-                </div>
+        {/* ── Table ── */}
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center py-20 text-gray-500 text-sm">
+              <svg className="w-5 h-5 mr-2 animate-spin text-red-500" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+              </svg>
+              Đang tải dữ liệu...
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-20 text-center text-gray-400 text-sm">Không có sự cố nào phù hợp.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    <th className="px-5 py-3 text-left">Chuyến đi</th>
+                    <th className="px-5 py-3 text-left">Loại sự cố</th>
+                    <th className="px-5 py-3 text-left">Mức độ</th>
+                    <th className="px-5 py-3 text-left">Thời gian</th>
+                    <th className="px-5 py-3 text-left">Mô tả</th>
+                    <th className="px-5 py-3 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filtered.map((i) => {
+                    const tripInfo = trips.find((t) => t.id === i.tripId);
+                    const tripDisplay =
+                      tripInfo?.routeName ||
+                      (i.tripStartLocation && i.tripEndLocation
+                        ? `${i.tripStartLocation} → ${i.tripEndLocation}`
+                        : tripInfo
+                        ? `${tripInfo.startLocation} → ${tripInfo.endLocation}`
+                        : `Chuyến #${i.tripId.slice(0, 8)}…`);
 
-                <h3 className="text-base font-bold text-gray-900 mb-1">{TYPE_LABELS[i.type]}</h3>
-                <div className="mb-3">
-                  <p className="text-xs font-semibold text-blue-700 truncate">
-                    {i.tripStartLocation && i.tripEndLocation
-                      ? `${i.tripStartLocation} → ${i.tripEndLocation}`
-                      : "Chuyến đi không xác định"}
-                  </p>
-                  {i.tripPlannedStartTime && (
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      🕐 {formatDateTime(i.tripPlannedStartTime)}
-                    </p>
-                  )}
-                </div>
+                    return (
+                      <tr key={i.id} className="group hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-3.5">
+                          <div className="font-medium text-blue-700">{tripDisplay}</div>
+                          {i.tripPlannedStartTime && (
+                            <div className="text-xs text-gray-400 mt-0.5">🕐 {formatDateTime(i.tripPlannedStartTime)}</div>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 font-semibold text-gray-900">
+                          {TYPE_LABELS[i.type]}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className={`inline-flex rounded-md border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${SEVERITY_COLORS[i.severity]}`}>
+                            {SEVERITY_LABELS[i.severity]}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-gray-600 whitespace-nowrap">
+                          {formatDateTime(i.timeIncident)}
+                        </td>
+                        <td className="px-5 py-3.5 text-sm text-gray-500 max-w-xs">
+                          <span className="line-clamp-2">{i.description || <span className="italic opacity-50">Không có mô tả</span>}</span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => openEdit(i)}
+                              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-amber-300 hover:text-amber-600 transition-colors shadow-sm"
+                            >
+                              Sửa
+                            </button>
+                            <button
+                              onClick={() => handleDelete(i.id)}
+                              className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors shadow-sm"
+                            >
+                              Xoá
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
-                <p className="text-sm text-gray-500 line-clamp-3 mb-4 flex-1">
-                  {i.description || <span className="italic opacity-50">Không có mô tả chi tiết</span>}
-                </p>
-
-                <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                  <button onClick={() => openEdit(i)} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors">Sửa</button>
-                  <button onClick={() => handleDelete(i.id)} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-700/10 transition-colors">Xoá</button>
-                </div>
-              </div>
-            ))}
-          </div>
+        {!loading && (
+          <p className="mt-3 text-xs text-gray-400 text-right">
+            Hiển thị {filtered.length} / {incidents.length} sự cố
+          </p>
         )}
       </main>
 
       {showModal && (
-        <IncidentModal title={isEdit ? "Cập nhật sự cố" : "Báo cáo sự cố"} onClose={() => setShowModal(false)} onSubmit={handleSubmit} form={form} setForm={setForm} loading={modalLoading} error={modalError} isEdit={isEdit} />
+        <IncidentModal
+          title={isEdit ? "Cập nhật sự cố" : "Báo cáo sự cố"}
+          onClose={() => setShowModal(false)}
+          onSubmit={handleSubmit}
+          form={form}
+          setForm={setForm}
+          trips={trips}
+          loading={modalLoading}
+          error={modalError}
+          isEdit={isEdit}
+          editingIncident={editingIncident}
+        />
       )}
 
       {toast && (

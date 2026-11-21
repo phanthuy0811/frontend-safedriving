@@ -462,7 +462,6 @@ export default function StaffPage() {
                     <h4 className="text-lg font-bold text-gray-900">
                       {viewingStaff.fullName || `${viewingStaff.lastName} ${viewingStaff.firstName}`}
                     </h4>
-                    <p className="text-xs text-gray-500 font-mono mt-0.5">ID: {viewingStaff.id}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">
                         {viewingStaff.gender === "MALE" ? "Nam" : viewingStaff.gender === "FEMALE" ? "Nữ" : "Khác"}

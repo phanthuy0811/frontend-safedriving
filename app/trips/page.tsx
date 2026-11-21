@@ -324,27 +324,7 @@ function TripModal({
             </div>
           </div>
 
-          {/* Status (when edit) */}
-          {isEdit && (
-            <div>
-              <label className="block mb-1.5 text-xs font-semibold text-gray-700">
-                Trạng thái chuyến đi
-              </label>
-              <select
-                value={form.status ?? "PLANNED"}
-                onChange={(e) =>
-                  setForm({ ...form, status: e.target.value as TripStatus })
-                }
-                className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-              >
-                {ALL_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+
 
           {/* Note */}
           <div>
@@ -575,6 +555,10 @@ export default function TripsPage() {
 
   // Open Edit Modal
   const openEditModal = (t: TripResponse) => {
+    if (t.status === "COMPLETED" || t.status === "CANCELLED" || t.status === "IN_PROGRESS") {
+      alert("Chuyến đi không thể chỉnh sửa khi đang di chuyển, đã hoàn thành hoặc đã bị hủy!");
+      return;
+    }
     setIsEdit(true);
     setEditId(t.id);
     setForm({
@@ -813,29 +797,31 @@ export default function TripsPage() {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-5 py-4 text-right space-x-2">
-                        {t.status === "PLANNED" && !t.vehicleId && (
+                      <td className="px-5 py-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
+                          {t.status === "PLANNED" && !t.vehicleId && (
+                            <button
+                              onClick={() => handleAutoDispatch(t.id)}
+                              title="Phân công nhanh chuyến đi"
+                              className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
+                            >
+                              ⚡ Phân công nhanh
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleAutoDispatch(t.id)}
-                            title="Phân công nhanh chuyến đi"
-                            className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
+                            onClick={() => openEditModal(t)}
+                            disabled={t.status === "COMPLETED" || t.status === "CANCELLED" || t.status === "IN_PROGRESS"}
+                            className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                           >
-                            ⚡ Phân công nhanh
+                            Sửa
                           </button>
-                        )}
-                        <button
-                          onClick={() => openEditModal(t)}
-                          className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          Sửa
-                        </button>
-
-                        <button
-                          onClick={() => handleDelete(t.id)}
-                          className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          Xóa
-                        </button>
+                          <button
+                            onClick={() => handleDelete(t.id)}
+                            className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            Xóa
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

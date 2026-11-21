@@ -10,6 +10,15 @@ export interface AssignmentResponse {
   vehicleId?: string;
   routeCode?: string;
   routeName?: string;
+  startLocation?: string;
+  endLocation?: string;
+  distanceKm?: number;
+  status?: string;
+  plannedStartTime?: string;
+  plannedEndTime?: string;
+  startTime?: string;
+  endTime?: string;
+  note?: string;
 }
 
 // Sync với AssignmentRequest BE
