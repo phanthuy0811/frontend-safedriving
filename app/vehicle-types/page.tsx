@@ -363,84 +363,88 @@ export default function VehicleTypesPage() {
           </div>
         </div>
 
-        {/* ── Grid Cards ── */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20 text-gray-500 text-sm">
-            <svg className="w-5 h-5 mr-2 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-            </svg>
-            Đang tải dữ liệu...
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="py-20 text-center text-gray-500 text-sm">
-            <svg className="w-10 h-10 mx-auto mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10h1m8 0H9m4 0h2m4 0h1v-3.65a1 1 0 00-.22-.624l-3.48-4.35A1 1 0 0014.52 7H13" />
-            </svg>
-            Không tìm thấy loại xe nào
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map((vt) => (
-              <div
-                key={vt.id}
-                id={`vehicle-type-card-${vt.id}`}
-                className="group relative rounded-2xl border border-gray-200 bg-white shadow-sm border-gray-200 p-5 hover:border-blue-300 hover:bg-gray-50 transition-all"
-              >
-                {/* ID badge */}
-                <span className="absolute top-3 right-3 text-[10px] font-mono text-gray-400">
-                  #{vt.id}
-                </span>
-
-                {/* Icon */}
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 border border-blue-200">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10h1m8 0H9m4 0h2m4 0h1v-3.65a1 1 0 00-.22-.624l-3.48-4.35A1 1 0 0014.52 7H13" />
-                  </svg>
-                </div>
-
-                {/* Code */}
-                <span className="inline-block rounded-md bg-white px-2 py-0.5 text-[11px] font-mono font-semibold text-blue-700 border border-gray-300 mb-2">
-                  {vt.code}
-                </span>
-
-                {/* Name */}
-                <h3 className="text-sm font-bold text-gray-900 leading-snug mb-3">{vt.name}</h3>
-
-                {/* Capacity */}
-                <div className="flex items-center gap-2 mb-4">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span className="text-sm text-gray-700">
-                    <span className="font-bold text-emerald-600">{vt.capacity}</span>{" "}
-                    <span className="text-gray-400">chỗ ngồi</span>
-                  </span>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <button
-                    id={`vehicle-type-edit-${vt.id}`}
-                    onClick={() => openEdit(vt)}
-                    className="flex-1 rounded-lg border border-gray-300 bg-white py-1.5 text-xs font-medium text-gray-700 hover:border-blue-200 hover:text-blue-600 transition-colors"
-                  >
-                    Sửa
-                  </button>
-                  <button
-                    id={`vehicle-type-delete-${vt.id}`}
-                    onClick={() => setDeleteTarget(vt)}
-                    className="flex-1 rounded-lg border border-gray-300 bg-white py-1.5 text-xs font-medium text-gray-700 hover:border-red-500/50 hover:text-red-600 transition-colors"
-                  >
-                    Xoá
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* ── Table ── */}
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center py-20 text-gray-500 text-sm">
+              <svg className="w-5 h-5 mr-2 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+              </svg>
+              Đang tải dữ liệu...
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-20 text-center text-gray-500 text-sm">
+              <svg className="w-10 h-10 mx-auto mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10h1m8 0H9m4 0h2m4 0h1v-3.65a1 1 0 00-.22-.624l-3.48-4.35A1 1 0 0014.52 7H13" />
+              </svg>
+              Không tìm thấy loại xe nào
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    <th className="px-5 py-3 text-left">Mã loại xe</th>
+                    <th className="px-5 py-3 text-left">Tên loại xe</th>
+                    <th className="px-5 py-3 text-left">Sức chứa</th>
+                    <th className="px-5 py-3 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filtered.map((vt) => (
+                    <tr
+                      key={vt.id}
+                      id={`vehicle-type-row-${vt.id}`}
+                      className="group hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="px-5 py-3.5">
+                        <span className="inline-block rounded-md bg-blue-50 px-2.5 py-1 text-xs font-mono font-semibold text-blue-700 border border-blue-200">
+                          {vt.code}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="font-semibold text-gray-900 flex items-center gap-2.5">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 border border-blue-100 text-blue-600">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10h1m8 0H9m4 0h2m4 0h1v-3.65a1 1 0 00-.22-.624l-3.48-4.35A1 1 0 0014.52 7H13" />
+                            </svg>
+                          </span>
+                          <span>{vt.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-gray-700 font-medium">
+                          <span className="font-bold text-emerald-600 text-sm">{vt.capacity}</span> chỗ ngồi
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            id={`vehicle-type-edit-${vt.id}`}
+                            onClick={() => openEdit(vt)}
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 transition-colors shadow-sm"
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            id={`vehicle-type-delete-${vt.id}`}
+                            onClick={() => setDeleteTarget(vt)}
+                            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors shadow-sm"
+                          >
+                            Xoá
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {/* Result count */}
         {!loading && (

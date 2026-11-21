@@ -15,7 +15,7 @@ import { ApiError } from "@/services/api.client";
 
 const EMPTY_CREATE_FORM: DriverCreateRequest = {
   username: "",
-  password: "Password123@",
+  password: "",
   firstName: "",
   lastName: "",
   phone: "",
@@ -52,6 +52,8 @@ export default function DriversPage() {
     hireDate: "",
     isActive: true,
     vehicleId: "",
+    urlImage: "",
+    staffId: "",
   });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -93,10 +95,13 @@ export default function DriversPage() {
       phone.toLowerCase().includes(q) ||
       plate.toLowerCase().includes(q);
 
+    const isDriverActive = d.isActive === true || d.staff?.account?.status === "ACTIVE";
+    const isDriverInactive = d.isActive === false || d.staff?.account?.status === "INACTIVE";
+
     const matchActive =
       filterActive === "ALL" ||
-      (filterActive === "ACTIVE" && d.isActive) ||
-      (filterActive === "INACTIVE" && !d.isActive);
+      (filterActive === "ACTIVE" && isDriverActive) ||
+      (filterActive === "INACTIVE" && isDriverInactive);
 
     return matchSearch && matchActive;
   });
@@ -105,11 +110,17 @@ export default function DriversPage() {
     e.preventDefault();
     if (
       !createForm.username.trim() ||
+      !createForm.password?.trim() ||
       !createForm.lastName.trim() ||
       !createForm.firstName.trim() ||
       !createForm.phone.trim()
     ) {
-      setCreateError("Vui lòng điền đầy đủ Tên đăng nhập, Họ, Tên và Số điện thoại.");
+      setCreateError("Vui lòng điền đầy đủ Tên đăng nhập, Mật khẩu, Họ, Tên và Số điện thoại.");
+      return;
+    }
+
+    if (!avatarFile) {
+      setCreateError("Vui lòng tải lên ảnh chân dung của tài xế (Ảnh là bắt buộc).");
       return;
     }
 
@@ -144,6 +155,8 @@ export default function DriversPage() {
       hireDate: driver.hireDate || new Date().toISOString().slice(0, 10),
       isActive: driver.isActive ?? true,
       vehicleId: driver.vehicle?.id || "",
+      urlImage: driver.urlImage || "",
+      staffId: driver.staff?.id || "",
     });
     setEditError(null);
     setShowEditModal(true);
@@ -178,6 +191,8 @@ export default function DriversPage() {
         hireDate: editForm.hireDate,
         isActive: editForm.isActive,
         vehicleId: editForm.vehicleId ? editForm.vehicleId : undefined,
+        urlImage: editForm.urlImage?.trim() ? editForm.urlImage.trim() : undefined,
+        staffId: editForm.staffId?.trim() ? editForm.staffId.trim() : undefined,
       };
       await updateDriver(editingDriver.id, payload);
       setShowEditModal(false);
@@ -190,6 +205,22 @@ export default function DriversPage() {
       }
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  const handleRestore = async (driver: DriverResponse) => {
+    const driverName = driver.staff?.fullName || driver.id;
+    if (!confirm(`Bạn có chắc muốn khôi phục/kích hoạt lại tài xế: ${driverName}?`)) {
+      return;
+    }
+    try {
+      await updateDriver(driver.id, {
+        hireDate: driver.hireDate || new Date().toISOString().slice(0, 10),
+        isActive: true,
+      });
+      fetchData();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Khôi phục tài xế thất bại.");
     }
   };
 
@@ -402,16 +433,29 @@ export default function DriversPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(driver)}
-                          className="rounded-lg p-1.5 text-red-600 hover:bg-red-50 transition-colors"
-                          title="Xóa tài xế"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                        {driver.isActive ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(driver)}
+                            className="rounded-lg p-1.5 text-red-600 hover:bg-red-50 transition-colors"
+                            title="Xóa/Tạm ngưng tài xế"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleRestore(driver)}
+                            className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50 transition-colors"
+                            title="Khôi phục / Kích hoạt lại tài xế"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -480,12 +524,21 @@ export default function DriversPage() {
               </div>
 
               {/* Ảnh đại diện / Avatar upload */}
-              <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-3 space-y-2">
-                <span className="font-bold text-gray-900 uppercase tracking-wide text-[11px] block">
-                  Ảnh chân dung Tài xế (Avatar)
-                </span>
+              <div className={`rounded-xl border p-3 space-y-2 transition-colors ${
+                !avatarFile && createError ? "border-red-300 bg-red-50/40" : "border-gray-200 bg-gray-50/60"
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-gray-900 uppercase tracking-wide text-[11px] block">
+                    Ảnh chân dung Tài xế (Avatar) *
+                  </span>
+                  {!avatarFile && (
+                    <span className="text-[10px] font-semibold text-red-500">Bắt buộc</span>
+                  )}
+                </div>
                 <div className="flex items-center gap-4">
-                  <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-white overflow-hidden shadow-sm shrink-0">
+                  <div className={`relative flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-dashed bg-white overflow-hidden shadow-sm shrink-0 ${
+                    !avatarFile && createError ? "border-red-400" : "border-gray-300"
+                  }`}>
                     {avatarPreview ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -494,7 +547,7 @@ export default function DriversPage() {
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className={`w-7 h-7 ${!avatarFile && createError ? "text-red-400" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     )}
@@ -509,21 +562,26 @@ export default function DriversPage() {
                         if (file) {
                           setAvatarFile(file);
                           setAvatarPreview(URL.createObjectURL(file));
+                          setCreateError(null);
                         }
                       }}
                       className="hidden"
                     />
                     <label
                       htmlFor="avatar-input"
-                      className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer shadow-sm"
+                      className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold cursor-pointer shadow-sm transition-colors ${
+                        !avatarFile && createError
+                          ? "border-red-300 bg-white text-red-700 hover:bg-red-50"
+                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
                     >
                       <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      {avatarFile ? "Chọn ảnh khác" : "Tải ảnh từ máy tính"}
+                      {avatarFile ? "Chọn ảnh khác" : "Tải ảnh từ máy tính *"}
                     </label>
-                    <p className="mt-1 text-[11px] text-gray-500">
-                      {avatarFile ? avatarFile.name : "Hỗ trợ định dạng JPG, PNG, WEBP"}
+                    <p className={`mt-1 text-[11px] ${!avatarFile && createError ? "text-red-500 font-medium" : "text-gray-500"}`}>
+                      {avatarFile ? avatarFile.name : "Bắt buộc ảnh chân dung (JPG, PNG, WEBP)"}
                     </p>
                   </div>
                 </div>

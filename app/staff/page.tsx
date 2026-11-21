@@ -21,13 +21,15 @@ const EMPTY_FORM: StaffRequest = {
   exactAddress: "",
   commune: "",
   province: "",
+  isActive: true,
+  accountId: "",
 };
 
 export default function StaffPage() {
   const [staffList, setStaffList] = useState<StaffResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterGender, setFilterGender] = useState<string>("ALL");
+  const [filterActive, setFilterActive] = useState<string>("ALL");
 
   // Create / Edit Modal
   const [showModal, setShowModal] = useState(false);
@@ -66,8 +68,16 @@ export default function StaffPage() {
       s.fullName?.toLowerCase().includes(q) ||
       s.phone?.toLowerCase().includes(q) ||
       (s.email && s.email.toLowerCase().includes(q));
-    const matchGender = filterGender === "ALL" || s.gender === filterGender;
-    return matchSearch && matchGender;
+
+    const isStaffActive = s.isActive === true || s.account?.status === "ACTIVE";
+    const isStaffInactive = s.isActive === false || s.account?.status === "INACTIVE";
+
+    const matchActive =
+      filterActive === "ALL" ||
+      (filterActive === "ACTIVE" && isStaffActive) ||
+      (filterActive === "INACTIVE" && isStaffInactive);
+
+    return matchSearch && matchActive;
   });
 
   const openCreateModal = () => {
@@ -91,6 +101,8 @@ export default function StaffPage() {
       exactAddress: staff.exactAddress || "",
       commune: staff.commune || "",
       province: staff.province || "",
+      isActive: staff.isActive ?? true,
+      accountId: staff.account?.id || "",
     });
     setModalError(null);
     setShowModal(true);
@@ -115,7 +127,7 @@ export default function StaffPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.lastName.trim() || !form.firstName.trim() || !form.phone.trim() || !form.dateOfBirth) {
+    if (!form.lastName?.trim() || !form.firstName?.trim() || !form.phone?.trim() || !form.dateOfBirth) {
       setModalError("Vui lòng điền Họ, Tên, Số điện thoại và Ngày sinh.");
       return;
     }
@@ -124,10 +136,14 @@ export default function StaffPage() {
     setModalError(null);
 
     try {
+      const payload: StaffRequest = {
+        ...form,
+        accountId: form.accountId?.trim() ? form.accountId.trim() : undefined,
+      };
       if (isEdit && editingId) {
-        await updateStaff(editingId, form);
+        await updateStaff(editingId, payload);
       } else {
-        await createStaff(form);
+        await createStaff(payload);
       }
       setShowModal(false);
       fetchStaff();
@@ -139,6 +155,25 @@ export default function StaffPage() {
       }
     } finally {
       setModalLoading(false);
+    }
+  };
+
+  const handleRestore = async (staff: StaffResponse) => {
+    const staffName = staff.fullName || staff.id;
+    if (!confirm(`Bạn có chắc muốn khôi phục/kích hoạt lại nhân viên: ${staffName}?`)) {
+      return;
+    }
+    try {
+      await updateStaff(staff.id, {
+        firstName: staff.firstName,
+        lastName: staff.lastName,
+        dateOfBirth: staff.dateOfBirth || "1995-01-01",
+        phone: staff.phone,
+        isActive: true,
+      });
+      fetchStaff();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Khôi phục nhân sự thất bại.");
     }
   };
 
@@ -210,16 +245,15 @@ export default function StaffPage() {
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            <span className="text-xs text-gray-500 font-medium">Giới tính:</span>
+            <span className="text-xs text-gray-500 font-medium">Trạng thái:</span>
             <select
-              value={filterGender}
-              onChange={(e) => setFilterGender(e.target.value)}
+              value={filterActive}
+              onChange={(e) => setFilterActive(e.target.value)}
               className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 focus:border-blue-500 focus:outline-none shadow-sm"
             >
-              <option value="ALL">Tất cả</option>
-              <option value="MALE">Nam (MALE)</option>
-              <option value="FEMALE">Nữ (FEMALE)</option>
-              <option value="OTHER">Khác (OTHER)</option>
+              <option value="ALL">Tất cả nhân viên</option>
+              <option value="ACTIVE">Đang hoạt động (ACTIVE)</option>
+              <option value="INACTIVE">Tạm ngưng (INACTIVE)</option>
             </select>
           </div>
         </div>
@@ -253,6 +287,7 @@ export default function StaffPage() {
                   <th className="px-4 py-3.5">Ngày sinh / Giới tính</th>
                   <th className="px-4 py-3.5">Địa chỉ</th>
                   <th className="px-4 py-3.5">Tài khoản (Account)</th>
+                  <th className="px-4 py-3.5">Trạng thái</th>
                   <th className="px-4 py-3.5 text-right">Thao tác</th>
                 </tr>
               </thead>
@@ -306,6 +341,25 @@ export default function StaffPage() {
                         <span className="text-[11px] text-gray-400 italic">Chưa cấp</span>
                       )}
                     </td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      {(() => {
+                        const isActive = staff.isActive ?? (staff.account?.status === "ACTIVE");
+                        return (
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${isActive
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : "bg-gray-100 text-gray-600 border border-gray-200"
+                              }`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-gray-400"
+                                }`}
+                            />
+                            {isActive ? "Hoạt động" : "Tạm ngưng"}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3.5 whitespace-nowrap text-right space-x-1">
                       <button
                         type="button"
@@ -328,16 +382,29 @@ export default function StaffPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(staff)}
-                        className="rounded-lg p-1.5 text-red-600 hover:bg-red-50 transition-colors"
-                        title="Xóa hồ sơ"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                      {(staff.isActive ?? (staff.account?.status === "ACTIVE")) ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(staff)}
+                          className="rounded-lg p-1.5 text-red-600 hover:bg-red-50 transition-colors"
+                          title="Xóa/Tạm ngưng nhân sự"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleRestore(staff)}
+                          className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50 transition-colors"
+                          title="Khôi phục / Kích hoạt lại nhân sự"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -361,7 +428,6 @@ export default function StaffPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-gray-900">Chi tiết Hồ sơ Nhân sự</h3>
-                  <p className="text-xs text-gray-500 font-mono">Endpoint: GET /staff/{`{id}`}</p>
                 </div>
               </div>
               <button
@@ -396,10 +462,21 @@ export default function StaffPage() {
                     <h4 className="text-lg font-bold text-gray-900">
                       {viewingStaff.fullName || `${viewingStaff.lastName} ${viewingStaff.firstName}`}
                     </h4>
-                    <p className="text-xs text-gray-500 font-mono mt-0.5">ID: {viewingStaff.id}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">
                         {viewingStaff.gender === "MALE" ? "Nam" : viewingStaff.gender === "FEMALE" ? "Nữ" : "Khác"}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${(viewingStaff.isActive ?? (viewingStaff.account?.status === "ACTIVE"))
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-gray-100 text-gray-600 border border-gray-200"
+                          }`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${(viewingStaff.isActive ?? (viewingStaff.account?.status === "ACTIVE")) ? "bg-emerald-500" : "bg-gray-400"
+                            }`}
+                        />
+                        {(viewingStaff.isActive ?? (viewingStaff.account?.status === "ACTIVE")) ? "Hoạt động" : "Tạm ngưng"}
                       </span>
                       {viewingStaff.createdAt && (
                         <span className="text-[10px] text-gray-500">
@@ -647,6 +724,18 @@ export default function StaffPage() {
                     className="w-full rounded-xl border border-gray-300 p-2.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1">Trạng thái hoạt động</label>
+                <select
+                  value={form.isActive ? "true" : "false"}
+                  onChange={(e) => setForm({ ...form, isActive: e.target.value === "true" })}
+                  className="w-full rounded-xl border border-gray-300 p-2.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                >
+                  <option value="true">Đang hoạt động (ACTIVE)</option>
+                  <option value="false">Tạm ngưng (INACTIVE)</option>
+                </select>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">

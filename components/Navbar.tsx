@@ -12,7 +12,7 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const pathname = usePathname();
 
-  const navLinks = [
+  const navLinks: { href: string; label: string; icon?: string; badge?: number; badgeColor?: string }[] = [
     { href: "/", label: "Tổng quan", icon: "dashboard" },
     {
       href: "/hitl",

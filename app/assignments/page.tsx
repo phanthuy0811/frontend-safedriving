@@ -303,6 +303,172 @@ function AssignmentModal({
   );
 }
 
+// ─── Detail Modal ─────────────────────────────────────────────────────────────
+
+function DetailModal({
+  assignment,
+  trip,
+  driver,
+  onClose,
+}: {
+  assignment: AssignmentResponse;
+  trip?: TripResponse;
+  driver?: DriverResponse;
+  onClose: () => void;
+}) {
+  const driverName =
+    assignment.driverName ||
+    driver?.staff?.fullName ||
+    `${driver?.staff?.lastName || ""} ${driver?.staff?.firstName || ""}`.trim() ||
+    "—";
+
+  const statusColor: Record<string, string> = {
+    PLANNED: "bg-gray-100 text-gray-600 border-gray-300",
+    ASSIGNED: "bg-amber-50 text-amber-700 border-amber-300",
+    IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-300",
+    COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-300",
+    CANCELLED: "bg-red-50 text-red-600 border-red-300",
+  };
+  const statusLabel: Record<string, string> = {
+    PLANNED: "Lên kế hoạch", ASSIGNED: "Đã phân công",
+    IN_PROGRESS: "Đang thực hiện", COMPLETED: "Hoàn thành", CANCELLED: "Đã hủy",
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 bg-gray-50/50">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 border border-amber-200">
+              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </span>
+            <div>
+              <h2 className="text-base font-bold text-gray-900">Chi tiết phân công</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Mã: <span className="font-mono">{assignment.id.slice(0, 8)}…</span></p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-5 max-h-[80vh] overflow-y-auto">
+          {/* Thông tin chuyến đi */}
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">🛣️ Thông tin chuyến đi</h3>
+            <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 space-y-2.5 text-sm">
+              {(assignment.routeCode || assignment.routeName) && (
+                <div className="flex items-start justify-between gap-4">
+                  <span className="text-gray-500 shrink-0">Tuyến đường</span>
+                  <span className="font-semibold text-amber-700 text-right">
+                    {assignment.routeCode ? `${assignment.routeCode} – ${assignment.routeName || ""}` : assignment.routeName}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-start justify-between gap-4">
+                <span className="text-gray-500 shrink-0">Lộ trình</span>
+                <span className="font-medium text-gray-800 text-right">
+                  {trip?.startLocation || "—"} ➔ {trip?.endLocation || "—"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-gray-500 shrink-0">Khởi hành dự kiến</span>
+                <span className="font-medium text-gray-800">{formatDateTime(trip?.plannedStartTime)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-gray-500 shrink-0">Kết thúc dự kiến</span>
+                <span className="font-medium text-gray-800">{formatDateTime(trip?.plannedEndTime)}</span>
+              </div>
+              {trip?.startTime && (
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-gray-500 shrink-0">Khởi hành thực tế</span>
+                  <span className="font-medium text-blue-700">{formatDateTime(trip?.startTime)}</span>
+                </div>
+              )}
+              {trip?.endTime && (
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-gray-500 shrink-0">Kết thúc thực tế</span>
+                  <span className="font-medium text-blue-700">{formatDateTime(trip?.endTime)}</span>
+                </div>
+              )}
+              {trip?.distanceKm != null && (
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-gray-500 shrink-0">Quãng đường</span>
+                  <span className="font-medium text-gray-800">{(trip.distanceKm ?? 0).toFixed(1)} km</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-4 pt-1 border-t border-gray-200/60">
+                <span className="text-gray-500 shrink-0">Trạng thái</span>
+                <span className={`inline-block rounded-md border px-2.5 py-0.5 text-xs font-bold ${statusColor[trip?.status || ""] || "bg-gray-100 text-gray-600 border-gray-300"}`}>
+                  {statusLabel[trip?.status || ""] || trip?.status || "—"}
+                </span>
+              </div>
+              {trip?.note && (
+                <div className="flex items-start justify-between gap-4 pt-1 border-t border-gray-200/60">
+                  <span className="text-gray-500 shrink-0">Ghi chú</span>
+                  <span className="text-gray-700 text-right italic">{trip?.note}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Thông tin tài xế */}
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">👨‍✈️ Thông tin tài xế</h3>
+            <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 space-y-2.5 text-sm">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-gray-500 shrink-0">Họ và tên</span>
+                <span className="font-semibold text-gray-900">{driverName}</span>
+              </div>
+              {driver?.staff?.phone && (
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-gray-500 shrink-0">Số điện thoại</span>
+                  <span className="font-medium text-gray-800">{driver.staff.phone}</span>
+                </div>
+              )}
+              {driver?.staff?.email && (
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-gray-500 shrink-0">Email</span>
+                  <span className="font-medium text-gray-800">{driver.staff.email}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-4 pt-1 border-t border-gray-200/60">
+                <span className="text-gray-500 shrink-0">Phương tiện</span>
+                {(assignment.vehiclePlate || driver?.vehicle?.plateNumber) ? (
+                  <span className="inline-flex items-center gap-1 font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200 font-mono text-xs">
+                    🚐 {assignment.vehiclePlate || driver?.vehicle?.plateNumber}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200 text-xs">Chưa có xe</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Thời điểm phân công */}
+          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/40 px-4 py-2.5 text-xs text-gray-500 flex items-center justify-between">
+            <span>⏱️ Phân công lúc</span>
+            <span className="font-semibold text-gray-700">{formatDateTime(assignment.assignmentAt)}</span>
+          </div>
+        </div>
+
+        <div className="flex justify-end border-t border-gray-200 px-6 py-4 bg-gray-50/50">
+          <button onClick={onClose} className="rounded-xl border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors">
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Confirm Delete ───────────────────────────────────────────────────────────
 
 function ConfirmDeleteModal({
@@ -356,7 +522,6 @@ export default function AssignmentsPage() {
   const [drivers, setDrivers] = useState<DriverResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterDriverId, setFilterDriverId] = useState("");
 
   const [showModal, setShowModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
@@ -367,6 +532,9 @@ export default function AssignmentsPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<AssignmentResponse | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const [viewTarget, setViewTarget] = useState<AssignmentResponse | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>("");
 
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
@@ -421,9 +589,6 @@ export default function AssignmentsPage() {
     fetchAllData();
   }, [fetchAllData]);
 
-  // ── Unique drivers for quick filter ──
-  const uniqueDriverIds = Array.from(new Set(assignments.map((a) => a.driverId)));
-
   // ── Filter ──
   const filtered = assignments.filter((a) => {
     const q = searchTerm.toLowerCase().trim();
@@ -436,8 +601,8 @@ export default function AssignmentsPage() {
       a.vehiclePlate?.toLowerCase().includes(q) ||
       a.routeName?.toLowerCase().includes(q) ||
       a.routeCode?.toLowerCase().includes(q);
-    const matchDriver = !filterDriverId || a.driverId === filterDriverId;
-    return matchSearch && matchDriver;
+    const matchStatus = !filterStatus || a.status === filterStatus;
+    return matchSearch && matchStatus;
   });
 
   const openCreate = () => {
@@ -453,6 +618,20 @@ export default function AssignmentsPage() {
   };
 
   const openEdit = (a: AssignmentResponse) => {
+    const tripObj = trips.find((t) => t.id === a.tripId);
+    const isLocked =
+      a.status === "COMPLETED" ||
+      a.status === "CANCELLED" ||
+      a.status === "IN_PROGRESS" ||
+      tripObj?.status === "COMPLETED" ||
+      tripObj?.status === "CANCELLED" ||
+      tripObj?.status === "IN_PROGRESS";
+
+    if (isLocked) {
+      alert("Chuyến đi không thể chỉnh sửa phân công khi đang di chuyển, đã hoàn thành hoặc đã bị hủy!");
+      return;
+    }
+
     setForm({ tripId: a.tripId, driverId: a.driverId, accountId: a.accountId || user?.accountId || "" });
     setIsEdit(true);
     setEditingId(a.id);
@@ -531,6 +710,42 @@ export default function AssignmentsPage() {
         </div>
 
 
+        {/* ── Status Pills ── */}
+        {(() => {
+          const statusList = [
+            { key: "", label: "Tất cả" },
+            { key: "PLANNED", label: "Lên kế hoạch" },
+            { key: "ASSIGNED", label: "Đã phân công" },
+            { key: "IN_PROGRESS", label: "Đang di chuyển" },
+            { key: "COMPLETED", label: "Hoàn thành" },
+            { key: "CANCELLED", label: "Đã huỷ" },
+          ];
+          return (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {statusList.map(({ key, label }) => {
+                const count = key === "" ? assignments.length : assignments.filter((a) => a.status === key).length;
+                const isActive = filterStatus === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setFilterStatus(key)}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium border transition-all ${isActive
+                      ? "bg-gray-900 text-white border-gray-900 shadow-sm"
+                      : "bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:text-gray-900"
+                      }`}
+                  >
+                    {label}
+                    <span className={`text-xs rounded-full px-1.5 py-0.5 font-semibold ${isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                      }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
+
         {/* ── Search & Filter ── */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <div className="relative flex-1">
@@ -546,27 +761,6 @@ export default function AssignmentsPage() {
               className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-colors"
             />
           </div>
-          <select
-            id="assignment-driver-filter"
-            value={filterDriverId}
-            onChange={(e) => setFilterDriverId(e.target.value)}
-            className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:outline-none transition-colors max-w-xs font-medium"
-          >
-            <option value="">Tất cả tài xế ({uniqueDriverIds.length})</option>
-            {uniqueDriverIds.map((id) => {
-              const driverObj = drivers.find((d) => d.id === id);
-              const driverName =
-                driverObj?.staff?.fullName ||
-                `${driverObj?.staff?.lastName || ""} ${driverObj?.staff?.firstName || ""}`.trim() ||
-                assignments.find((a) => a.driverId === id)?.driverName ||
-                `Tài xế #${id.slice(0, 8)}`;
-              return (
-                <option key={id} value={id}>
-                  👨‍✈️ {driverName}
-                </option>
-              );
-            })}
-          </select>
         </div>
 
         {/* ── Table ── */}
@@ -600,7 +794,7 @@ export default function AssignmentsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filtered.map((a) => {
+                  {filtered.map((a, index) => {
                     const tripObj = trips.find((t) => t.id === a.tripId);
                     const driverObj = drivers.find((d) => d.id === a.driverId);
                     const driverDisplayName =
@@ -610,11 +804,18 @@ export default function AssignmentsPage() {
                       "Tài xế";
                     const vehiclePlateDisplay =
                       a.vehiclePlate || driverObj?.vehicle?.plateNumber;
+                    const isLocked =
+                      a.status === "COMPLETED" ||
+                      a.status === "CANCELLED" ||
+                      a.status === "IN_PROGRESS" ||
+                      tripObj?.status === "COMPLETED" ||
+                      tripObj?.status === "CANCELLED" ||
+                      tripObj?.status === "IN_PROGRESS";
 
                     return (
                       <tr key={a.id} className="group hover:bg-gray-50 transition-colors">
                         <td className="px-5 py-3.5">
-                          <span className="font-mono text-xs text-gray-500 font-semibold">{a.id.slice(0, 8)}…</span>
+                          <span className="font-mono text-xs text-gray-500 font-semibold">PC-{String(index + 1).padStart(3, "0")}</span>
                         </td>
                         <td className="px-5 py-3.5">
                           <div className="font-semibold text-gray-900">
@@ -656,9 +857,21 @@ export default function AssignmentsPage() {
                         <td className="px-5 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
+                              title="Xem chi tiết"
+                              onClick={() => setViewTarget(a)}
+                              className="rounded-lg border border-gray-300 bg-white p-1.5 text-gray-500 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-colors shadow-sm"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                            </button>
+                            <button
                               id={`assignment-edit-${a.id}`}
                               onClick={() => openEdit(a)}
-                              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-amber-300 hover:text-amber-600 transition-colors shadow-sm"
+                              disabled={isLocked}
+                              title={isLocked ? "Không thể sửa phân công khi chuyến đi đang di chuyển, đã hoàn thành hoặc đã bị hủy" : "Sửa"}
+                              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-amber-300 hover:text-amber-600 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-gray-700 disabled:hover:border-gray-300"
                             >
                               Sửa
                             </button>
@@ -700,6 +913,15 @@ export default function AssignmentsPage() {
           loading={modalLoading}
           error={modalError}
           isEdit={isEdit}
+        />
+      )}
+
+      {viewTarget && (
+        <DetailModal
+          assignment={viewTarget}
+          trip={trips.find((t) => t.id === viewTarget.tripId)}
+          driver={drivers.find((d) => d.id === viewTarget.driverId)}
+          onClose={() => setViewTarget(null)}
         />
       )}
 
