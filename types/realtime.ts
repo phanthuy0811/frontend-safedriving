@@ -57,4 +57,13 @@ export interface PingEvent {
   active_clients: number;
 }
 
+export interface AlcoholViolationAlertEvent {
+  type: "ALCOHOL_VIOLATION_ALERT";
+  tripId: string;
+  driverId: string;
+  driverName: string;
+  alcoholLevel: number;
+  message: string;
+}
+
 export type RealtimeConnectionStatus = "CONNECTING" | "CONNECTED" | "DISCONNECTED";

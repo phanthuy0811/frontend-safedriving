@@ -14,6 +14,7 @@ import {
   PingEvent,
   RealtimeConnectionStatus,
   SafetyAlertEvent,
+  AlcoholViolationAlertEvent,
 } from "@/types/realtime";
 import { getHitlQueue } from "@/services/hitl.service";
 
@@ -24,10 +25,13 @@ interface RealtimeContextType {
   recentAlerts: SafetyAlertEvent[];
   pendingHitlCount: number;
   latestNotification: SafetyAlertEvent | null;
+  alcoholAlert: AlcoholViolationAlertEvent | null;
   dismissNotification: () => void;
+  dismissAlcoholAlert: () => void;
   refreshPendingCount: () => Promise<void>;
   requestStream: (driverId: string) => void;
   stopStream: (driverId: string) => void;
+  tripUpdateTimestamp: number;
 }
 
 const RealtimeContext = createContext<RealtimeContextType | undefined>(
@@ -50,10 +54,42 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const [pendingHitlCount, setPendingHitlCount] = useState<number>(0);
   const [latestNotification, setLatestNotification] =
     useState<SafetyAlertEvent | null>(null);
+  const [alcoholAlert, setAlcoholAlert] = useState<AlcoholViolationAlertEvent | null>(null);
+  const [tripUpdateTimestamp, setTripUpdateTimestamp] = useState<number>(0);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const wsReconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const playAlertSound = useCallback(() => {
+    try {
+      if (typeof window === "undefined") return;
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      
+      const playBeep = (freq: number, startTime: number, duration: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0.3, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+
+      const now = ctx.currentTime;
+      playBeep(880, now, 0.2);
+      playBeep(880, now + 0.25, 0.2);
+      playBeep(1174.66, now + 0.5, 0.4);
+    } catch {
+      // Audio might be blocked by browser policy until user interaction
+    }
+  }, []);
 
   const refreshPendingCount = useCallback(async () => {
     try {
@@ -72,6 +108,10 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     try {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log("✅ Đã kết nối WebSocket Admin Realtime");
+      };
       
       ws.onmessage = (event) => {
         try {
@@ -82,19 +122,34 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
             if (imgEl) {
               imgEl.setAttribute("src", "data:image/jpeg;base64," + msg.data);
             }
+          } else if (msg.type === "ALCOHOL_VIOLATION_ALERT") {
+            console.warn("🚨 [WS] Cảnh báo vi phạm nồng độ cồn nhận được:", msg);
+            setAlcoholAlert({
+              type: "ALCOHOL_VIOLATION_ALERT",
+              tripId: msg.tripId,
+              driverId: msg.driverId,
+              driverName: msg.driverName,
+              alcoholLevel: msg.alcoholLevel,
+              message: msg.message,
+            });
+            // Phát âm thanh cảnh báo
+            playAlertSound();
+            // Kích hoạt cập nhật chuyến đi
+            setTripUpdateTimestamp(Date.now());
           }
         } catch(e) {}
       };
 
-      ws.onerror = () => {
+      ws.onerror = (err) => {
+        console.error("WebSocket Admin Error:", err);
         ws.close();
       };
       
       ws.onclose = () => {
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
+        if (wsReconnectTimeoutRef.current) {
+          clearTimeout(wsReconnectTimeoutRef.current);
         }
-        reconnectTimeoutRef.current = setTimeout(() => {
+        wsReconnectTimeoutRef.current = setTimeout(() => {
           connectWs();
         }, 3000);
       };
@@ -102,7 +157,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     } catch(err) {
       console.error("WS error", err);
     }
-  }, []);
+  }, [playAlertSound]);
 
   
   const requestStream = useCallback((driverId: string) => {
@@ -217,7 +272,6 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         }
         reconnectTimeoutRef.current = setTimeout(() => {
           connectSse();
-    connectWs();
         }, 5000);
       };
     } catch {
@@ -227,6 +281,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     connectSse();
+    connectWs();
     refreshPendingCount();
 
     const interval = setInterval(() => {
@@ -238,14 +293,24 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (wsReconnectTimeoutRef.current) {
+        clearTimeout(wsReconnectTimeoutRef.current);
       }
     };
   }, [connectSse, connectWs, refreshPendingCount]);
 
   const dismissNotification = () => {
     setLatestNotification(null);
+  };
+
+  const dismissAlcoholAlert = () => {
+    setAlcoholAlert(null);
   };
 
   return (
@@ -257,10 +322,13 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         recentAlerts,
         pendingHitlCount,
         latestNotification,
+        alcoholAlert,
         dismissNotification,
+        dismissAlcoholAlert,
         refreshPendingCount,
         requestStream,
         stopStream,
+        tripUpdateTimestamp,
       }}
     >
       {children}
