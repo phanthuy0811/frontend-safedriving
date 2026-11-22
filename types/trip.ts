@@ -4,7 +4,8 @@ export type TripStatus =
   | "ASSIGNED"
   | "IN_PROGRESS"
   | "COMPLETED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "REASSIGN_REQUIRED";
 
 // Sync với TripResponse BE
 export interface TripResponse {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   getAllTrips,
   createTrip,
@@ -11,11 +12,15 @@ import {
 } from "@/services/trip.service";
 import { getAllVehicles } from "@/services/vehicle.service";
 import { getAllRoutes } from "@/services/route.service";
-import { getAllAssignments } from "@/services/assignment.service";
+import { getAllAssignments, createAssignment } from "@/services/assignment.service";
+import { getAllDrivers } from "@/services/driver.service";
 import { TripResponse, TripRequest, TripStatus, TripGpsTrackResponse } from "@/types/trip";
 import { VehicleResponse } from "@/types/vehicle";
 import { RouteResponse } from "@/types/route";
+import { DriverResponse } from "@/types/driver";
 import { ApiError } from "@/services/api.client";
+import { useRealtime } from "@/context/RealtimeContext";
+import { useAuth } from "@/context/AuthContext";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -25,6 +30,7 @@ const STATUS_LABELS: Record<TripStatus, string> = {
   IN_PROGRESS: "Đang di chuyển",
   COMPLETED: "Hoàn thành",
   CANCELLED: "Đã huỷ",
+  REASSIGN_REQUIRED: "Cần phân công lại",
 };
 
 const STATUS_COLORS: Record<TripStatus, string> = {
@@ -33,6 +39,7 @@ const STATUS_COLORS: Record<TripStatus, string> = {
   IN_PROGRESS: "bg-emerald-50 text-emerald-700 border-emerald-300 animate-pulse",
   COMPLETED: "bg-purple-50 text-purple-700 border-purple-200",
   CANCELLED: "bg-red-50 text-red-700 border-red-200",
+  REASSIGN_REQUIRED: "bg-amber-100 text-amber-800 border-amber-400 font-bold animate-pulse",
 };
 
 const ALL_STATUSES: TripStatus[] = [
@@ -41,6 +48,7 @@ const ALL_STATUSES: TripStatus[] = [
   "IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
+  "REASSIGN_REQUIRED",
 ];
 
 function formatDateTime(iso?: string): string {
@@ -433,17 +441,170 @@ function TracksModal({ trip, tracks, onClose }: TracksModalProps) {
   );
 }
 
-// ─── Main Trips Page ──────────────────────────────────────────────────────────
+// ─── Reassign Driver Modal ────────────────────────────────────────────────────
 
-export default function TripsPage() {
+interface ReassignModalProps {
+  trip: TripResponse;
+  drivers: DriverResponse[];
+  onClose: () => void;
+  onSuccess: () => void;
+  accountId: string;
+}
+
+function ReassignModal({ trip, drivers, onClose, onSuccess, accountId }: ReassignModalProps) {
+  const [selectedDriverId, setSelectedDriverId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const availableDrivers = drivers.filter((d) => d.isActive !== false);
+
+  const handleAssign = async () => {
+    if (!selectedDriverId) {
+      setError("Vui lòng chọn tài xế mới");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await createAssignment({
+        tripId: trip.id,
+        driverId: selectedDriverId,
+        accountId: accountId || "",
+      });
+      onSuccess();
+    } catch (err) {
+      const e = err as ApiError;
+      setError(e.message || "Phân công tài xế thất bại");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg rounded-2xl border border-amber-200 bg-white shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between border-b border-amber-100 px-6 py-4 bg-amber-50/80">
+          <div>
+            <h3 className="text-base font-bold text-amber-900 flex items-center gap-2">
+              <span>🔄</span> Phân công lại tài xế
+            </h3>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Chuyến đi đã bị gỡ tài xế do vi phạm nồng độ cồn hoặc yêu cầu điều phối lại.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">
+              {error}
+            </div>
+          )}
+
+          {/* Trip Summary Card */}
+          <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3.5 space-y-1.5 text-xs">
+            <div className="font-semibold text-gray-800 text-sm flex items-center gap-1.5">
+              <span>📍 {trip.startLocation || "Điểm đón"}</span>
+              <span>➔</span>
+              <span>🎯 {trip.endLocation || "Điểm đến"}</span>
+            </div>
+            {trip.routeName && (
+              <div className="text-blue-600 font-medium">Tuyến: {trip.routeName}</div>
+            )}
+            <div className="text-gray-500">
+              Thời gian dự kiến: <strong>{formatDateTime(trip.plannedStartTime)}</strong>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-gray-500">Trạng thái:</span>
+              <span className="rounded-md border px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border-amber-300">
+                REASSIGN_REQUIRED (Cần phân công lại)
+              </span>
+            </div>
+          </div>
+
+          {/* Select New Driver */}
+          <div>
+            <label className="block mb-1.5 text-xs font-semibold text-gray-700">
+              👨‍✈️ Chọn tài xế mới thay thế <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedDriverId}
+              onChange={(e) => setSelectedDriverId(e.target.value)}
+              className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all font-medium"
+            >
+              <option value="">-- Nhấn để chọn tài xế thay thế --</option>
+              {availableDrivers.map((d) => {
+                const fullName =
+                  d.staff?.fullName ||
+                  `${d.staff?.lastName || ""} ${d.staff?.firstName || ""}`.trim() ||
+                  `Tài xế #${d.id.slice(0, 8)}`;
+                const phone = d.staff?.phone ? ` (${d.staff.phone})` : "";
+                const vehicleTag = d.vehicle
+                  ? ` — [Xe: ${d.vehicle.plateNumber}]`
+                  : " — [⚠️ Chưa có xe]";
+                return (
+                  <option key={d.id} value={d.id}>
+                    {fullName}{phone}{vehicleTag}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4 bg-gray-50/50">
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={handleAssign}
+            disabled={loading || !selectedDriverId}
+            className="rounded-xl bg-amber-600 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-700 shadow-sm disabled:opacity-50 transition-colors flex items-center gap-1.5"
+          >
+            {loading ? "Đang xử lý..." : "Xác nhận phân công"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Trips Page Component ───────────────────────────────────────────────
+
+function TripsPageContent() {
+  const { user } = useAuth();
+  const { tripUpdateTimestamp } = useRealtime();
+  const searchParams = useSearchParams();
+
   const [trips, setTrips] = useState<TripResponse[]>([]);
   const [vehicles, setVehicles] = useState<VehicleResponse[]>([]);
   const [routes, setRoutes] = useState<RouteResponse[]>([]);
+  const [drivers, setDrivers] = useState<DriverResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [selectedStatus, setSelectedStatus] = useState<TripStatus | "ALL">("ALL");
+
+  // Sync initial filter from URL params if present (e.g. ?status=REASSIGN_REQUIRED)
+  useEffect(() => {
+    const statusParam = searchParams.get("status") as TripStatus | null;
+    if (statusParam && ALL_STATUSES.includes(statusParam)) {
+      setSelectedStatus(statusParam);
+    }
+  }, [searchParams]);
 
   // Modals
   const [modalOpen, setModalOpen] = useState(false);
@@ -452,6 +613,9 @@ export default function TripsPage() {
   const [form, setForm] = useState<TripRequest>(EMPTY_FORM);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+
+  // Reassign Modal
+  const [reassignTrip, setReassignTrip] = useState<TripResponse | null>(null);
 
   // Tracks Modal
   const [trackModalTrip, setTrackModalTrip] = useState<TripResponse | null>(null);
@@ -462,13 +626,25 @@ export default function TripsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [tripsData, vehiclesData, routesData, assignmentsData] = await Promise.all([
+      const [tripsData, vehiclesData, routesData, assignmentsData, driversData] = await Promise.all([
         getAllTrips(),
         getAllVehicles(),
         getAllRoutes(),
         getAllAssignments().catch(() => []),
+        getAllDrivers().catch(() => []),
       ]);
       const enrichedTrips = tripsData.map((t) => {
+        // Nếu chuyến đi đang ở trạng thái REASSIGN_REQUIRED:
+        // Đảm bảo không gán thông tin tài xế cũ
+        if (t.status === "REASSIGN_REQUIRED") {
+          return {
+            ...t,
+            driverName: undefined,
+            driverId: undefined,
+            status: "REASSIGN_REQUIRED" as TripStatus,
+          };
+        }
+
         const assignment = assignmentsData.find((a) => a.tripId === t.id);
         if (assignment) {
           return {
@@ -497,6 +673,7 @@ export default function TripsPage() {
       setTrips(enrichedTrips);
       setVehicles(vehiclesData);
       setRoutes(routesData);
+      setDrivers(driversData);
     } catch (err) {
       const e = err as ApiError;
       setError(e.message || "Không thể tải danh sách chuyến đi");
@@ -508,6 +685,13 @@ export default function TripsPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Tự động load lại khi nhận sự kiện cảnh báo qua WebSocket
+  useEffect(() => {
+    if (tripUpdateTimestamp > 0) {
+      loadData();
+    }
+  }, [tripUpdateTimestamp, loadData]);
 
   // Lọc chuyến đi theo tab trạng thái đang chọn
   const filteredTrips = trips.filter((t) => {
@@ -651,16 +835,32 @@ export default function TripsPage() {
           </button>
           {ALL_STATUSES.map((st) => {
             const count = trips.filter((t) => t.status === st).length;
+            const isReassign = st === "REASSIGN_REQUIRED";
             return (
               <button
                 key={st}
                 onClick={() => setSelectedStatus(st)}
-                className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${selectedStatus === st
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all flex items-center gap-1.5 ${selectedStatus === st
+                    ? isReassign
+                      ? "bg-red-600 text-white shadow-md shadow-red-500/20"
+                      : "bg-blue-600 text-white shadow-sm"
+                    : isReassign
+                      ? "bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100"
+                      : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
                   }`}
               >
-                {STATUS_LABELS[st]} ({count})
+                {isReassign && <span>⚠️</span>}
+                <span>{STATUS_LABELS[st]}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${selectedStatus === st
+                      ? "bg-white/20 text-white"
+                      : isReassign
+                        ? "bg-amber-200 text-amber-900"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                >
+                  {count}
+                </span>
               </button>
             );
           })}
@@ -797,31 +997,38 @@ export default function TripsPage() {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          {t.status === "PLANNED" && !t.vehicleId && (
-                            <button
-                              onClick={() => handleAutoDispatch(t.id)}
-                              title="Phân công nhanh chuyến đi"
-                              className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
-                            >
-                              ⚡ Phân công nhanh
-                            </button>
-                          )}
+                      <td className="px-5 py-4 text-right space-x-2">
+                        {t.status === "REASSIGN_REQUIRED" && (
                           <button
-                            onClick={() => openEditModal(t)}
-                            disabled={t.status === "COMPLETED" || t.status === "CANCELLED" || t.status === "IN_PROGRESS"}
-                            className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            onClick={() => setReassignTrip(t)}
+                            title="Chọn tài xế khác cho chuyến đi này"
+                            className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 transition-colors shadow-sm animate-pulse"
                           >
-                            Sửa
+                            <span>🔄</span> Phân công lại
                           </button>
+                        )}
+                        {t.status === "PLANNED" && !t.vehicleId && (
                           <button
-                            onClick={() => handleDelete(t.id)}
-                            className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                            onClick={() => handleAutoDispatch(t.id)}
+                            title="Phân công nhanh chuyến đi"
+                            className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
                           >
-                            Xóa
+                            ⚡ Phân công nhanh
                           </button>
-                        </div>
+                        )}
+                        <button
+                          onClick={() => openEditModal(t)}
+                          className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          Sửa
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(t.id)}
+                          className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          Xóa
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -831,6 +1038,20 @@ export default function TripsPage() {
           )}
         </div>
       </div>
+
+      {/* Reassign Driver Modal */}
+      {reassignTrip && (
+        <ReassignModal
+          trip={reassignTrip}
+          drivers={drivers}
+          accountId={user?.accountId || ""}
+          onClose={() => setReassignTrip(null)}
+          onSuccess={() => {
+            setReassignTrip(null);
+            loadData();
+          }}
+        />
+      )}
 
       {/* Trip Modal */}
       {modalOpen && (
@@ -857,5 +1078,13 @@ export default function TripsPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function TripsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-gray-500">Đang tải...</div>}>
+      <TripsPageContent />
+    </Suspense>
   );
 }

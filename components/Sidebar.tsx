@@ -94,6 +94,18 @@ export default function Sidebar() {
             </Link>
 
             <Link
+              href="/alcohol-records"
+              className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${pathname.startsWith("/alcohol-records")
+                ? "bg-blue-50 text-blue-700 font-semibold"
+                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                }`}
+            >
+              <div className="flex items-center gap-3">
+                <span>Vi phạm nồng độ cồn</span>
+              </div>
+            </Link>
+
+            <Link
               href="/incidents"
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${pathname.startsWith("/incidents")
                 ? "bg-blue-50 text-blue-700 font-semibold"

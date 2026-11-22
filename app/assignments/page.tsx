@@ -60,10 +60,10 @@ function AssignmentModal({
   error,
   isEdit,
 }: ModalProps) {
-  // 1. Chỉ lấy chuyến đi chưa phân công (PLANNED)
+  // 1. Lấy chuyến đi chưa phân công (PLANNED) hoặc cần phân công lại (REASSIGN_REQUIRED)
   const availableTrips = trips.filter((t) => {
     if (isEdit && t.id === form.tripId) return true;
-    return t.status === "PLANNED";
+    return t.status === "PLANNED" || t.status === "REASSIGN_REQUIRED";
   });
 
   const selectedTrip = trips.find((t) => t.id === form.tripId);
@@ -552,6 +552,14 @@ export default function AssignmentsPage() {
         getAllDrivers().catch(() => []),
       ]);
       const enrichedTrips = tripsData.map((t) => {
+        if (t.status === "REASSIGN_REQUIRED") {
+          return {
+            ...t,
+            driverName: undefined,
+            driverId: undefined,
+            status: "REASSIGN_REQUIRED" as TripStatus,
+          };
+        }
         const assignment = assignmentsData.find((a) => a.tripId === t.id);
         if (assignment) {
           return {
