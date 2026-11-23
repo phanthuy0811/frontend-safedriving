@@ -11,6 +11,28 @@ export async function getActiveBlackspots(): Promise<AccidentBlackspot[]> {
   }
 }
 
+export async function createBlackspot(
+  payload: Omit<AccidentBlackspot, "id">
+): Promise<AccidentBlackspot | null> {
+  try {
+    const res = await apiClient.post<AccidentBlackspot>("/api/v1/blackspots", payload);
+    return res.data || null;
+  } catch (err) {
+    console.error("Lỗi tạo điểm đen mới:", err);
+    return null;
+  }
+}
+
+export async function deleteBlackspot(id: string): Promise<boolean> {
+  try {
+    await apiClient.delete(`/api/v1/blackspots/${encodeURIComponent(id)}`);
+    return true;
+  } catch (err) {
+    console.error("Lỗi xóa điểm đen:", err);
+    return false;
+  }
+}
+
 export async function getSimulationRoute(): Promise<SimulationRouteData | null> {
   try {
     const res = await apiClient.get<SimulationRouteData>("/api/v1/simulation/route");

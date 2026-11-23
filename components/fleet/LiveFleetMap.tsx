@@ -9,6 +9,8 @@ import { useRealtime } from "@/context/RealtimeContext";
 import { AccidentBlackspot } from "@/types/blackspot";
 import {
   getActiveBlackspots,
+  createBlackspot,
+  deleteBlackspot,
   getSimulationRoute,
   startGpsSimulation,
   stopGpsSimulation,
@@ -97,6 +99,10 @@ export default function LiveFleetMap({
   const [simLoading, setSimLoading] = useState(false);
   const [simStartIndex, setSimStartIndex] = useState<number>(105);
   const [simSpeed, setSimSpeed] = useState<number>(2.0);
+  const [isSimPanelCollapsed, setIsSimPanelCollapsed] = useState<boolean>(false);
+  const [isPlacingFlag, setIsPlacingFlag] = useState<boolean>(false);
+  const [manualFlagRadius, setManualFlagRadius] = useState<number>(200);
+  const manualFlagCountRef = useRef<number>(1);
   const [activeGeofenceAlert, setActiveGeofenceAlert] = useState<{
     spotName: string;
     distance: number;
@@ -247,9 +253,66 @@ export default function LiveFleetMap({
     map.invalidateSize();
   }, [map, mapType]);
 
-  // 4. Render Accident Blackspots (Red Circles 200m & Warning Flags)
+  // Xóa điểm đen (áp dụng cho cả 3 cờ demo và cờ gắn tay)
+  const handleDeleteBlackspot = React.useCallback(async (spotId: string) => {
+    setBlackspots((prev) => {
+      const target = prev.find((s) => s.id === spotId);
+      if (target) {
+        setActiveGeofenceAlert((curr) => (curr?.spotName === target.name ? null : curr));
+      }
+      return prev.filter((s) => s.id !== spotId);
+    });
+    if (!spotId.startsWith("manual-local-")) {
+      await deleteBlackspot(spotId);
+    }
+  }, []);
+
+  // 3.5 Bắt sự kiện click lên bản đồ khi bật chế độ "Gắn cờ bằng tay"
   useEffect(() => {
-    if (!map || !blackspotsGroupRef.current || blackspots.length === 0) return;
+    if (!map) return;
+    const container = map.getContainer();
+    if (isPlacingFlag) {
+      container.style.cursor = "crosshair";
+    } else {
+      container.style.cursor = "";
+    }
+
+    const handleMapClick = async (e: L.LeafletMouseEvent) => {
+      if (!isPlacingFlag) return;
+      const { lat, lng } = e.latlng;
+      const flagNumber = manualFlagCountRef.current++;
+      const tempId = `manual-local-${Date.now()}`;
+      const newSpotPayload: Omit<AccidentBlackspot, "id"> = {
+        name: `Điểm nguy hiểm #${flagNumber} (Gắn tay)`,
+        latitude: Number(lat.toFixed(6)),
+        longitude: Number(lng.toFixed(6)),
+        radiusMeters: manualFlagRadius,
+        hazardType: "ACCIDENT_PRONE",
+        description: `Điểm đen gắn cờ thủ công trên bản đồ (bán kính ${manualFlagRadius}m).`,
+        feedbackCount: 1,
+        isActive: true,
+      };
+
+      const optimisticSpot: AccidentBlackspot = { id: tempId, ...newSpotPayload };
+      setBlackspots((prev) => [...prev, optimisticSpot]);
+
+      // Lưu lên Backend để Geofence phát cảnh báo thực tế về điện thoại
+      const saved = await createBlackspot(newSpotPayload);
+      if (saved && saved.id) {
+        setBlackspots((prev) => prev.map((s) => (s.id === tempId ? saved : s)));
+      }
+    };
+
+    map.on("click", handleMapClick);
+    return () => {
+      container.style.cursor = "";
+      map.off("click", handleMapClick);
+    };
+  }, [map, isPlacingFlag, manualFlagRadius]);
+
+  // 4. Render Accident Blackspots (Red Circles 200m & Warning Flags + Delete '×' Button)
+  useEffect(() => {
+    if (!map || !blackspotsGroupRef.current) return;
     const group = blackspotsGroupRef.current;
     group.clearLayers();
 
@@ -264,9 +327,10 @@ export default function LiveFleetMap({
         fillOpacity: isAlerting ? 0.45 : 0.22,
         weight: isAlerting ? 3 : 2,
         dashArray: isAlerting ? undefined : "6, 6",
+        interactive: false,
       });
 
-      // 2. Custom Flag / Hazard Icon
+      // 2. Custom Flag / Hazard Icon with direct '×' delete button next to the flag
       const flagHtml = `
         <div style="
           position: relative;
@@ -274,15 +338,17 @@ export default function LiveFleetMap({
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          transform: translate(-50%, -50%);
+          width: 34px;
+          height: 34px;
         ">
           <span style="
             position: absolute;
-            width: ${isAlerting ? "46px" : "32px"};
-            height: ${isAlerting ? "46px" : "32px"};
+            width: ${isAlerting ? "46px" : "34px"};
+            height: ${isAlerting ? "46px" : "34px"};
             border-radius: 50%;
             background: rgba(239, 68, 68, ${isAlerting ? "0.6" : "0.3"});
             animation: beacon-pulse 1.3s infinite ease-in-out;
+            pointer-events: none;
           "></span>
           <div style="
             background: ${isAlerting ? "#991b1b" : "#dc2626"};
@@ -300,16 +366,57 @@ export default function LiveFleetMap({
           ">
             🚩
           </div>
+          <button
+            type="button"
+            class="blackspot-delete-x"
+            data-spot-id="${spot.id}"
+            title="Xóa cờ này"
+            style="
+              position: absolute;
+              top: -6px;
+              right: -8px;
+              width: 18px;
+              height: 18px;
+              border-radius: 9999px;
+              background: #111827;
+              color: #ffffff;
+              border: 1.5px solid #ffffff;
+              font-size: 11px;
+              font-weight: 800;
+              line-height: 1;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+              z-index: 20;
+              padding: 0;
+            "
+          >×</button>
         </div>
       `;
 
       const flagIcon = L.divIcon({
         className: "clean-plate-tooltip",
         html: flagHtml,
-        iconSize: [30, 30],
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
       });
 
       const marker = L.marker([spot.latitude, spot.longitude], { icon: flagIcon });
+
+      marker.on("add", () => {
+        const el = marker.getElement();
+        if (!el) return;
+        const delBtn = el.querySelector(".blackspot-delete-x");
+        if (delBtn) {
+          delBtn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+            handleDeleteBlackspot(spot.id);
+          });
+        }
+      });
 
       const popupHtml = `
         <div style="font-family: sans-serif; min-width: 240px; padding: 4px;">
@@ -328,17 +435,36 @@ export default function LiveFleetMap({
           <p style="font-size: 11px; color: #475569; margin-bottom: 8px; line-height: 1.4;">
             ${spot.description || "Điểm giao cắt nguy hiểm cần chú ý quan sát và giảm tốc độ."}
           </p>
-          <div style="font-size: 11px; color: #0284c7; font-weight: 600; border-top: 1px solid #f1f5f9; padding-top: 6px;">
-            🗣️ ${spot.feedbackCount || 0} lượt tài xế phản hồi va chạm
+          <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #f1f5f9; padding-top: 6px;">
+            <span style="font-size: 11px; color: #0284c7; font-weight: 600;">
+              🗣️ ${spot.feedbackCount || 0} lượt phản hồi
+            </span>
+            <button
+              type="button"
+              class="popup-delete-spot-btn"
+              data-spot-id="${spot.id}"
+              style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700; cursor: pointer;"
+            >✕ Xóa cờ</button>
           </div>
         </div>
       `;
       marker.bindPopup(popupHtml);
+      marker.on("popupopen", () => {
+        const popupEl = marker.getPopup()?.getElement();
+        const btn = popupEl?.querySelector(".popup-delete-spot-btn");
+        if (btn) {
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            marker.closePopup();
+            handleDeleteBlackspot(spot.id);
+          });
+        }
+      });
 
       group.addLayer(circle);
       group.addLayer(marker);
     });
-  }, [map, blackspots, activeGeofenceAlert]);
+  }, [map, blackspots, activeGeofenceAlert, handleDeleteBlackspot]);
 
   // 5. Render Vehicles & Update Realtime Markers
   useEffect(() => {
@@ -366,13 +492,15 @@ export default function LiveFleetMap({
 
     combinedVehicles.forEach((vehicle, idx) => {
       const isSimCar = vehicle.plateNumber === "30F-13579" || vehicle.id === SIM_VEHICLE.id;
-      const liveGps = (vehiclesGps && vehiclesGps[vehicle.id]) || (realtimeGps && realtimeGps[vehicle.id]);
+      const liveGps =
+        (vehiclesGps && (vehiclesGps[vehicle.id] || vehiclesGps[vehicle.plateNumber])) ||
+        (realtimeGps && (realtimeGps[vehicle.id] || realtimeGps[vehicle.plateNumber]));
 
       let lat: number;
       let lng: number;
       let speedText: string;
 
-      if (isSimCar) {
+      if (isSimCar && (isSimulating || !(liveGps?.latitude && liveGps?.longitude))) {
         lat = simCarPosition[0];
         lng = simCarPosition[1];
         speedText = `${simCarSpeed.toFixed(1)} km/h`;
@@ -679,9 +807,20 @@ export default function LiveFleetMap({
     }
   };
 
-  // Quick Action: Focus directly on the simulated car
+  // Quick Action: Focus directly on the live GPS vehicle (if active) or simulated car
   const handleFocusSimCar = () => {
     if (!map) return;
+    if (!isSimulating) {
+      const liveEntries = Object.values(realtimeGps || {});
+      const firstLive = liveEntries.find((g) => g?.latitude && g?.longitude);
+      if (firstLive) {
+        map.flyTo([Number(firstLive.latitude), Number(firstLive.longitude)], 16, {
+          animate: true,
+          duration: 1.2,
+        });
+        return;
+      }
+    }
     map.flyTo(simCarPosition, 16, { animate: true, duration: 1.2 });
   };
 
@@ -757,82 +896,96 @@ export default function LiveFleetMap({
           </span>
         </div>
 
-        {/* E2E Simulation & Accident Blackspot Control Card */}
-        <div className="rounded-2xl border border-blue-200 bg-white/95 p-3 backdrop-blur-md shadow-lg">
-          <div className="flex items-center justify-between gap-2 mb-2">
+        {/* E2E Simulation & Accident Blackspot Control Card (Collapsible with '−') */}
+        <div className="rounded-2xl border border-blue-200 bg-white/95 p-3 backdrop-blur-md shadow-lg transition-all">
+          <div className={`flex items-center justify-between gap-2 ${isSimPanelCollapsed ? "" : "mb-2"}`}>
             <div className="flex items-center gap-1.5">
               <span className="text-sm">🚗</span>
               <span className="text-xs font-bold text-gray-900">Mô phỏng Lộ trình & Geofence</span>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200">
-              9.4 km (OSRM)
-            </span>
-          </div>
-
-          {/* Quick Jump Selector */}
-          <div className="mb-2">
-            <label className="text-[10px] text-gray-500 font-medium block mb-1">
-              Điểm bắt đầu xe lăn bánh:
-            </label>
-            <select
-              value={simStartIndex}
-              onChange={(e) => setSimStartIndex(Number(e.target.value))}
-              disabled={isSimulating}
-              className="w-full text-xs rounded-xl border border-gray-300 bg-white px-2.5 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-gray-100 disabled:text-gray-500 transition-all font-medium"
-            >
-              <option value={0}>🏁 Từ đầu: Bến xe Mỹ Đình (km 0)</option>
-              <option value={105}>⚠️ Sát Điểm 1: Ngã tư Cầu Giấy (cách 120m)</option>
-              <option value={215}>⚠️ Sát Điểm 2: Daewoo Liễu Giai (cách 120m)</option>
-              <option value={325}>⚠️ Sát Điểm 3: Dốc Cửa Nam (cách 120m)</option>
-            </select>
-          </div>
-
-          {/* Action buttons & Speed */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleToggleSimulation}
-              disabled={simLoading}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer ${
-                isSimulating
-                  ? "bg-red-600 hover:bg-red-700 text-white"
-                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
-              }`}
-            >
-              {simLoading ? (
-                <span className="text-xs">Đang tải...</span>
-              ) : isSimulating ? (
-                <>
-                  <span>⏹️</span>
-                  <span>Dừng mô phỏng</span>
-                </>
-              ) : (
-                <>
-                  <span>▶️</span>
-                  <span>Bắt đầu lái xe thử</span>
-                </>
-              )}
-            </button>
-
-            {/* Speed toggle */}
-            <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-0.5 text-[10px] font-semibold">
-              {[1, 2, 5].map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setSimSpeed(s)}
-                  disabled={isSimulating}
-                  className={`px-2 py-1 rounded-lg transition-all ${
-                    simSpeed === s
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-500 hover:text-gray-800"
-                  }`}
-                >
-                  {s}x
-                </button>
-              ))}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200">
+                9.4 km (OSRM)
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsSimPanelCollapsed((prev) => !prev)}
+                title={isSimPanelCollapsed ? "Mở rộng bảng mô phỏng" : "Thu gọn bảng mô phỏng"}
+                className="h-6 w-6 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 flex items-center justify-center font-bold text-sm leading-none transition-colors cursor-pointer"
+              >
+                {isSimPanelCollapsed ? "+" : "−"}
+              </button>
             </div>
           </div>
+
+          {!isSimPanelCollapsed && (
+            <>
+              {/* Quick Jump Selector */}
+              <div className="mb-2">
+                <label className="text-[10px] text-gray-500 font-medium block mb-1">
+                  Điểm bắt đầu xe lăn bánh:
+                </label>
+                <select
+                  value={simStartIndex}
+                  onChange={(e) => setSimStartIndex(Number(e.target.value))}
+                  disabled={isSimulating}
+                  className="w-full text-xs rounded-xl border border-gray-300 bg-white px-2.5 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-gray-100 disabled:text-gray-500 transition-all font-medium"
+                >
+                  <option value={0}>🏁 Từ đầu: Bến xe Mỹ Đình (km 0)</option>
+                  <option value={105}>⚠️ Sát Điểm 1: Ngã tư Cầu Giấy (cách 120m)</option>
+                  <option value={215}>⚠️ Sát Điểm 2: Daewoo Liễu Giai (cách 120m)</option>
+                  <option value={325}>⚠️ Sát Điểm 3: Dốc Cửa Nam (cách 120m)</option>
+                </select>
+              </div>
+
+              {/* Action buttons & Speed */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleToggleSimulation}
+                  disabled={simLoading}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer ${
+                    isSimulating
+                      ? "bg-red-600 hover:bg-red-700 text-white"
+                      : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  }`}
+                >
+                  {simLoading ? (
+                    <span className="text-xs">Đang tải...</span>
+                  ) : isSimulating ? (
+                    <>
+                      <span>⏹️</span>
+                      <span>Dừng mô phỏng</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>▶️</span>
+                      <span>Bắt đầu lái xe thử</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Speed toggle */}
+                <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-0.5 text-[10px] font-semibold">
+                  {[1, 2, 5].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSimSpeed(s)}
+                      disabled={isSimulating}
+                      className={`px-2 py-1 rounded-lg transition-all ${
+                        simSpeed === s
+                          ? "bg-white text-blue-600 shadow-sm"
+                          : "text-gray-500 hover:text-gray-800"
+                      }`}
+                    >
+                      {s}x
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Live Warning Notification Banner */}
           {activeGeofenceAlert && (
@@ -849,10 +1002,62 @@ export default function LiveFleetMap({
             </div>
           )}
         </div>
+
+        {/* Manual Flag Placement Mode Helper Banner */}
+        {isPlacingFlag && (
+          <div className="rounded-2xl border border-red-300 bg-red-50/95 p-2.5 backdrop-blur-md shadow-lg text-xs text-red-900">
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <span className="font-bold flex items-center gap-1">
+                <span>🚩</span> Chế độ gắn cờ bằng tay
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsPlacingFlag(false)}
+                className="rounded-lg bg-red-600 hover:bg-red-700 text-white px-2.5 py-0.5 text-[11px] font-bold cursor-pointer"
+              >
+                ✓ Xong
+              </button>
+            </div>
+            <p className="text-[11px] text-red-800 mb-2">
+              Nhấn vào bất kỳ vị trí nào trên bản đồ để cắm cờ điểm nguy hiểm.
+            </p>
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="text-red-700 font-medium">Bán kính:</span>
+              {[100, 200, 300].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setManualFlagRadius(r)}
+                  className={`px-2 py-0.5 rounded-lg font-bold border transition-all cursor-pointer ${
+                    manualFlagRadius === r
+                      ? "bg-red-600 text-white border-red-600"
+                      : "bg-white text-red-700 border-red-200 hover:bg-red-100"
+                  }`}
+                >
+                  {r}m
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Right Controls: Map Layer Switcher, Focus Sim Car & Fit Bounds */}
+      {/* Right Controls: Manual Flag, Map Layer Switcher, Focus Sim Car & Fit Bounds */}
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        {/* Manual Flag Toggle Button */}
+        <button
+          type="button"
+          onClick={() => setIsPlacingFlag((prev) => !prev)}
+          title="Nhấn để bật chế độ gắn cờ điểm nguy hiểm bằng tay lên bản đồ"
+          className={`rounded-xl border px-3 py-1.5 text-xs font-bold shadow-sm backdrop-blur-md transition-all flex items-center gap-1.5 cursor-pointer ${
+            isPlacingFlag
+              ? "border-red-600 bg-red-600 text-white ring-2 ring-red-400/50"
+              : "border-red-200 bg-white/95 text-red-600 hover:bg-red-50"
+          }`}
+        >
+          <span>🚩</span>
+          <span>{isPlacingFlag ? "Đang gắn cờ..." : "Gắn cờ bằng tay"}</span>
+        </button>
         {/* Quick Focus Sim Car */}
         <button
           type="button"
